@@ -1,0 +1,106 @@
+---
+import { getCollection } from 'astro:content';
+import Layout from '../../layouts/Layout.astro';
+import Roll from '../../components/Roll.astro';
+
+export async function getStaticPaths() {
+  const allRolls = await getCollection('rolls');
+  const uniqueTags = [...new Set(allRolls.map((roll) => roll.data.tags || []).flat())];
+
+  return uniqueTags.map((tag) => {
+    const filteredRolls = allRolls.filter((roll) =>
+      roll.data.tags?.includes(tag)
+    );
+    return {
+      params: { tag },
+      props: { rolls: filteredRolls },
+    };
+  });
+}
+
+const { tag } = Astro.params;
+const { rolls } = Astro.props;
+---
+
+<Layout title={`Tag: ${tag} - Wanderer's Journal`}>
+  <div class="nav-container">
+    <nav class="tag-menu">
+      <a href="/" class="brand">Wanderer's Journal</a>
+      <div style="width: 1px; height: 15px; background: rgba(255,255,255,0.2);"></div>
+      <a href="/" class="tag-link">Index</a>
+      <a href="/about" class="tag-link">À propos</a>
+      <span class="tag-link active">{tag}</span>
+    </nav>
+  </div>
+
+  <main>
+    {rolls.map(roll => (
+      <Roll title={roll.data.title} poem={roll.data.poem} images={roll.data.images} dominantColor={roll.data.dominantColor} />
+    ))}
+  </main>
+
+  <style>
+    .nav-container {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      display: flex;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .tag-menu {
+      background: rgba(20, 20, 20, 0.6);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0.5rem 1rem;
+      border-radius: 50px;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .brand {
+      font-family: 'Bodoni Moda', serif;
+      font-weight: 700;
+      font-style: italic;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 1.2rem;
+      margin-right: 1rem;
+    }
+
+    .tag-link { 
+      color: var(--text-muted); 
+      text-decoration: none; 
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .tag-link.active { 
+      color: var(--accent); 
+    }
+  </style>
+
+  <script>
+    const observerOptions = { root: null, rootMargin: '0px', threshold: 0.15 };
+    const observer = new IntersectionObserver((entries, observer) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, observerOptions);
+
+    document.addEventListener('astro:page-load', () => {
+      const elements = document.querySelectorAll('.reveal-on-scroll');
+      elements.forEach(el => observer.observe(el));
+    });
+  </script>
+</Layout>

@@ -1,0 +1,386 @@
+---
+import '@fontsource/inter';
+import '@fontsource/bodoni-moda';
+import { ClientRouter } from 'astro:transitions';
+import CustomCursor from '../components/CustomCursor.astro';
+
+interface Props {
+	title: string;
+}
+
+const { title } = Astro.props;
+---
+<!doctype html>
+<html lang="fr">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title}</title>
+    
+    <!-- SEO / Meta Tags -->
+    <meta name="description" content="Marvelous journal of a wanderer - Portfolio de photographie de rue immersif et poétique." />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content="Instants suspendus, fragments de rues et poésie de l'ordinaire." />
+    <meta property="og:image" content="/og-image.jpg" /> <!-- Pensez à ajouter cette image dans public/ -->
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <ClientRouter />
+    <style is:global>
+      :root {
+        --bg-base: #050505;
+        --text-main: #f0f0f0;
+        --text-muted: #888888;
+        --accent: #ffffff;
+        
+        /* Variables de Palette */
+        --p1: #050505;
+        --p2: #050505;
+        --p3: #050505;
+        --p4: #050505;
+        --p5: #050505;
+        --aura-opacity: 0.25;
+      }
+
+      /* API Houdini pour les transitions fluides */
+      @property --p1 { syntax: '<color>'; initial-value: #050505; inherits: true; }
+      @property --p2 { syntax: '<color>'; initial-value: #050505; inherits: true; }
+      @property --p3 { syntax: '<color>'; initial-value: #050505; inherits: true; }
+      @property --p4 { syntax: '<color>'; initial-value: #050505; inherits: true; }
+      @property --p5 { syntax: '<color>'; initial-value: #050505; inherits: true; }
+      @property --bg-base { syntax: '<color>'; initial-value: #050505; inherits: true; }
+      @property --text-main { syntax: '<color>'; initial-value: #f0f0f0; inherits: true; }
+      @property --text-muted { syntax: '<color>'; initial-value: #888888; inherits: true; }
+      @property --accent { syntax: '<color>'; initial-value: #ffffff; inherits: true; }
+      @property --aura-opacity { syntax: '<number>'; initial-value: 0.25; inherits: true; }
+
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--bg-base);
+        color: var(--text-main);
+        font-family: 'Inter', sans-serif;
+        overflow-x: hidden;
+        transition: background-color 2s ease, color 2s ease;
+      }
+
+      /* L'aura composée de sphères de lumière indépendantes */
+      .bg-aura {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        background-color: var(--bg-base);
+        overflow: hidden;
+        pointer-events: none;
+        transition: background-color 2s ease;
+      }
+
+      .aura-blob {
+        position: absolute;
+        width: 80vmax;
+        height: 80vmax;
+        filter: blur(100px);
+        border-radius: 50%;
+        opacity: var(--aura-opacity);
+        mix-blend-mode: screen;
+        transition: background-color 2.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 2s ease;
+        will-change: transform, background-color, opacity;
+      }
+
+      /* Positions et animations de dérive pour chaque blob */
+      .b1 { top: -20%; left: -20%; background-color: var(--p1); animation: drift1 40s infinite alternate; }
+      .b2 { top: -20%; right: -20%; background-color: var(--p2); animation: drift2 35s infinite alternate; }
+      .b3 { bottom: -20%; right: -20%; background-color: var(--p3); animation: drift3 45s infinite alternate; }
+      .b4 { bottom: -20%; left: -20%; background-color: var(--p4); animation: drift4 38s infinite alternate; }
+      .b5 { top: 20%; left: 20%; width: 60vmax; height: 60vmax; background-color: var(--p5); animation: drift5 50s infinite alternate; }
+
+      @keyframes drift1 { 0% { transform: translate(0,0); } 100% { transform: translate(10%, 15%); } }
+      @keyframes drift2 { 0% { transform: translate(0,0); } 100% { transform: translate(-15%, 10%); } }
+      @keyframes drift3 { 0% { transform: translate(0,0); } 100% { transform: translate(-10%, -15%); } }
+      @keyframes drift4 { 0% { transform: translate(0,0); } 100% { transform: translate(15%, -10%); } }
+      @keyframes drift5 { 0% { transform: translate(0,0); } 100% { transform: translate(-5%, 5%); } }
+
+      /* --- ACCESSIBILITÉ : REDUCED MOTION --- */
+      @media (prefers-reduced-motion: reduce) {
+        .aura-blob {
+          animation: none !important;
+          transition: background-color 1s ease !important;
+        }
+        .bg-aura {
+          transition: none !important;
+        }
+        .cursor-dot {
+          display: none !important;
+        }
+        :global(body) {
+          cursor: auto !important;
+        }
+        .reveal-on-scroll {
+          opacity: 1 !important;
+          transform: none !important;
+          transition: none !important;
+        }
+      }
+
+      /* On s'assure que le contenu est au-dessus */
+      main, nav, footer, .nav-container {
+        position: relative;
+        z-index: 10;
+        transition: opacity 1s ease, transform 1s ease;
+      }
+
+      /* --- MODE CHAMBRE NOIRE --- */
+      body.chambre-noire main header,
+      body.chambre-noire .nav-container,
+      body.chambre-noire .filter-section,
+      body.chambre-noire .journal-caption,
+      body.chambre-noire .thought-fragment,
+      body.chambre-noire .next-roll-footer {
+        opacity: 0 !important;
+        pointer-events: none;
+        transform: translateY(10px);
+      }
+
+      body.chambre-noire .bg-aura {
+        opacity: 0.15 !important; /* On tamise encore plus l'aura */
+      }
+
+      .noise-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 16000;
+        pointer-events: none;
+        opacity: 0.05;
+      }
+
+      body.lightbox-open {
+        overflow: hidden !important;
+      }
+
+      /* --- LIGHTBOX GLOBALE --- */
+      .lightbox {
+        position: fixed;
+        inset: 0;
+        z-index: 15000;
+        display: none;
+        justify-content: center;
+        align-items: center;
+        padding: 2rem;
+      }
+
+      .lightbox.is-open {
+        display: flex;
+        cursor: zoom-out;
+      }
+
+      .lightbox-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.95);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        cursor: zoom-out;
+      }
+
+      .lightbox-close {
+        position: absolute;
+        top: 2rem;
+        right: 2rem;
+        background: none;
+        border: none;
+        color: white;
+        font-size: 2.5rem;
+        cursor: pointer;
+        z-index: 2;
+        opacity: 0.5;
+        transition: opacity 0.3s ease;
+      }
+
+      .lightbox-close:hover { opacity: 1; }
+
+      .lightbox-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        max-width: 1400px;
+        display: flex;
+        gap: 4rem;
+        z-index: 1;
+        cursor: default;
+      }
+
+      .lightbox.landscape .lightbox-content {
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .lightbox.landscape .lightbox-image-container {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+      }
+
+      .lightbox.landscape #lightbox-img {
+        max-width: 90%;
+        max-height: 70vh;
+        object-fit: contain;
+      }
+
+      .lightbox.landscape .lightbox-info {
+        text-align: center;
+        max-width: 800px;
+      }
+
+      .lightbox.portrait .lightbox-content {
+        flex-direction: row;
+        align-items: center;
+      }
+
+      .lightbox.portrait .lightbox-image-container {
+        flex: 1.5;
+        height: 85vh;
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      .lightbox.portrait #lightbox-img {
+        height: 100%;
+        width: auto;
+        max-width: 100%;
+        object-fit: contain;
+      }
+
+      .lightbox.portrait .lightbox-info {
+        flex: 1;
+        text-align: left;
+      }
+
+      .lightbox-poem {
+        font-family: 'Bodoni Moda', serif;
+        font-style: italic;
+        font-size: 2.5rem;
+        line-height: 1.3;
+        margin-bottom: 2rem;
+        color: white;
+      }
+
+      .lightbox-exif {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.3em;
+        color: rgba(255, 255, 255, 0.5);
+      }
+
+      @media (max-width: 1024px) {
+        .lightbox-content { flex-direction: column !important; gap: 2rem; }
+        .lightbox-image-container { height: auto !important; justify-content: center !important; }
+        #lightbox-img { max-height: 60vh !important; width: 100% !important; }
+        .lightbox-info { text-align: center !important; }
+        .lightbox-poem { font-size: 1.5rem; }
+      }
+    </style>
+	</head>
+	<body>
+    <div class="bg-aura">
+      <div class="aura-blob b1"></div>
+      <div class="aura-blob b2"></div>
+      <div class="aura-blob b3"></div>
+      <div class="aura-blob b4"></div>
+      <div class="aura-blob b5"></div>
+    </div>
+    <svg class="noise-overlay" aria-hidden="true">
+      <filter id="noise">
+        <feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="3" stitchTiles="stitch">
+          <animate attributeName="seed" from="0" to="100" dur="1s" repeatCount="indefinite" />
+        </feTurbulence>
+      </filter>
+      <rect width="100%" height="100%" filter="url(#noise)"></rect>
+    </svg>
+
+    <CustomCursor />
+
+    <!-- Lightbox Unique Globale -->
+    <div id="global-lightbox" class="lightbox" aria-hidden="true">
+      <div class="lightbox-backdrop"></div>
+      <button class="lightbox-close" aria-label="Fermer">✕</button>
+      <div class="lightbox-content">
+        <div class="lightbox-image-container">
+          <img id="lightbox-img" src="" alt="" />
+        </div>
+        <div class="lightbox-info">
+          <p id="lightbox-poem" class="lightbox-poem"></p>
+          <p id="lightbox-exif" class="lightbox-exif"></p>
+        </div>
+      </div>
+    </div>
+
+		<slot />
+
+    <script>
+      // Logique globale de la Lightbox
+      function setupLightbox() {
+        const lightbox = document.getElementById('global-lightbox');
+        const img = document.getElementById('lightbox-img') as HTMLImageElement;
+        const poem = document.getElementById('lightbox-poem');
+        const exif = document.getElementById('lightbox-exif');
+        
+        if (!lightbox || !img) return;
+
+        const close = () => {
+          lightbox.classList.remove('is-open');
+          document.body.classList.remove('lightbox-open');
+          lightbox.setAttribute('aria-hidden', 'true');
+        };
+
+        window.addEventListener('open-lightbox', (e: any) => {
+          const data = e.detail;
+          img.src = data.url;
+          if (poem) poem.textContent = data.poem;
+          if (exif) exif.textContent = data.exif;
+          
+          lightbox.classList.add('is-open');
+          document.body.classList.add('lightbox-open');
+          lightbox.setAttribute('aria-hidden', 'false');
+
+          // Orientation
+          const temp = new Image();
+          temp.onload = () => {
+            lightbox.classList.remove('portrait', 'landscape');
+            lightbox.classList.add(temp.height > temp.width ? 'portrait' : 'landscape');
+          };
+          temp.src = data.url;
+        });
+
+        lightbox.addEventListener('click', (e) => {
+          // Si on clique directement sur le conteneur (fond) ou le backdrop
+          if (e.target === lightbox || (e.target as HTMLElement).classList.contains('lightbox-backdrop')) {
+            close();
+          }
+        });
+        lightbox.querySelector('.lightbox-close')?.addEventListener('click', close);
+        window.addEventListener('keydown', (e) => e.key === 'Escape' && close());
+      }
+
+      document.addEventListener('astro:page-load', setupLightbox);
+
+      // Logique Chambre Noire
+      function setupChambreNoire() {
+        window.addEventListener('keydown', (e) => {
+          if (e.key.toLowerCase() === 'h' || e.key === '.') {
+            document.body.classList.toggle('chambre-noire');
+          }
+        });
+      }
+      document.addEventListener('astro:page-load', setupChambreNoire);
+    </script>
+	</body>
+</html>

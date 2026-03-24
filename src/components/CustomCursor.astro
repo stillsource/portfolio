@@ -1,0 +1,150 @@
+---
+// CustomCursor.astro
+// Un curseur personnalisé pour le mode Desktop
+---
+<div class="cursor-dot" id="custom-cursor"></div>
+
+<style>
+  @media (pointer: fine) {
+    :global(body) {
+      cursor: none !important;
+    }
+    
+    :global(a), :global(button), :global(.has-overlay), :global(.clickable-image) {
+      cursor: none !important;
+    }
+    
+    .cursor-dot {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 8px;
+      height: 8px;
+      background-color: var(--accent);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 20000;
+      transform: translate(-50%, -50%);
+      transition: width 0.15s cubic-bezier(0.2, 0, 0.2, 1), 
+                  height 0.15s cubic-bezier(0.2, 0, 0.2, 1), 
+                  background-color 0.15s ease, 
+                  opacity 0.2s ease;
+      mix-blend-mode: difference;
+      opacity: 0; 
+      will-change: transform, width, height;
+    }
+
+    .cursor-dot.is-hovering {
+      width: 32px;
+      height: 32px;
+      background-color: color-mix(in srgb, var(--accent) 15%, transparent);
+      border: 1px solid var(--accent);
+      mix-blend-mode: normal;
+    }
+
+    .cursor-dot.is-reading {
+      width: 50px;
+      height: 50px;
+      background-color: color-mix(in srgb, var(--accent) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+      mix-blend-mode: normal;
+      backdrop-filter: blur(2px);
+    }
+    
+    .cursor-dot.is-reading::after {
+      content: '+';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -51%);
+      color: var(--accent);
+      font-size: 18px;
+      font-weight: 200;
+    }
+  }
+
+  @media (pointer: coarse) {
+    .cursor-dot {
+      display: none;
+    }
+  }
+</style>
+
+<script>
+  function initCursor() {
+    const cursor = document.getElementById('custom-cursor');
+    if (!cursor) return;
+
+    let mouseX = -100;
+    let mouseY = -100;
+    let currentX = -100;
+    let currentY = -100;
+    let initialized = false;
+
+    const onMouseMove = (e: MouseEvent) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      
+      if (!initialized) {
+        currentX = mouseX;
+        currentY = mouseY;
+        cursor.style.opacity = '1';
+        initialized = true;
+      }
+    };
+
+    const updateCursor = () => {
+      if (initialized) {
+        // Facteur de lissage augmenté (0.3 au lieu de 0.15) pour un suivi plus "sharp"
+        currentX += (mouseX - currentX) * 0.35;
+        currentY += (mouseY - currentY) * 0.35;
+        
+        // On évite les calculs inutiles si l'écart est infime
+        if (Math.abs(mouseX - currentX) < 0.01 && Math.abs(mouseY - currentY) < 0.01) {
+          currentX = mouseX;
+          currentY = mouseY;
+        }
+
+        cursor.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) translate(-50%, -50%)`;
+      }
+      requestAnimationFrame(updateCursor);
+    };
+
+    window.addEventListener('mousemove', onMouseMove, { passive: true });
+    requestAnimationFrame(updateCursor);
+
+    // Utilisation de la délégation d'événements pour plus de précision et de performance
+    const handleOver = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target) return;
+
+      const isInteractive = target.closest('a, button, .clickable-image');
+      const isReading = target.closest('.has-overlay');
+
+      if (isInteractive) {
+        cursor.classList.add('is-hovering');
+      } else {
+        cursor.classList.remove('is-hovering');
+      }
+
+      if (isReading) {
+        cursor.classList.add('is-reading');
+      } else {
+        cursor.classList.remove('is-reading');
+      }
+    };
+
+    document.addEventListener('mouseover', handleOver);
+    
+    // Cacher le curseur quand on quitte la fenêtre
+    document.addEventListener('mouseleave', () => {
+      cursor.style.opacity = '0';
+    });
+    
+    document.addEventListener('mouseenter', () => {
+      cursor.style.opacity = '1';
+    });
+  }
+
+  document.addEventListener('astro:page-load', initCursor);
+</script>

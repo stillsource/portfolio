@@ -1,0 +1,305 @@
+---
+// Roll.astro
+export interface Props {
+  title: string;
+  poem?: string;
+  dominantColor?: string;
+  images: {
+    url: string;
+    metadata?: string;
+    poem?: string;
+    palette?: string[];
+  }[]; 
+}
+const { title, poem, dominantColor = '#050505', images } = Astro.props;
+---
+<section class="roll-section">
+  <div class="roll-header reveal-on-scroll">
+    <h2 class="roll-title">{title}</h2>
+    {poem && <p class="roll-poem-global">{poem}</p>}
+    <div class="roll-line"></div>
+  </div>
+  
+  <div class="roll-images">
+    {images.map((img, index) => (
+      <div 
+        class="image-wrapper reveal-on-scroll color-trigger" 
+        data-palette={JSON.stringify(img.palette || [dominantColor])}
+        data-color={img.palette ? img.palette[0] : dominantColor}
+      >
+        <div class="side-column left-col">
+          {img.poem && index % 2 === 0 && (
+            <div class="thought-fragment floating-thought left">
+              {img.poem}
+            </div>
+          )}
+        </div>
+
+        <div class="center-column">
+          <div 
+            class="image-container has-overlay clickable-image" 
+            data-url={img.url} 
+            data-exif={img.metadata || ''} 
+            data-poem={img.poem || ''}
+          >
+             <img 
+               src={img.url} 
+               alt={`Photo du roll ${title}`} 
+               loading="lazy"
+               decoding="async"
+               class="styled-image"
+             />
+             
+             {(img.metadata || img.poem) && (
+               <div class="image-overlay">
+                 {/* L'overlay est conservé techniquement pour le curseur mais vidé de son contenu visuel intrusif */}
+               </div>
+             )}
+          </div>
+          
+          <div class="journal-caption">
+            {img.metadata && <span class="caption-exif">{img.metadata}</span>}
+          </div>
+        </div>
+
+        <div class="side-column right-col">
+          {img.poem && index % 2 !== 0 && (
+            <div class="thought-fragment floating-thought right">
+              {img.poem}
+            </div>
+          )}
+        </div>
+      </div>
+    ))}
+  </div>
+</section>
+
+<style>
+  .roll-section { 
+    margin-bottom: clamp(6rem, 15vw, 12rem); 
+  }
+  
+  .roll-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    padding: clamp(6rem, 15vw, 10rem) 1rem clamp(3rem, 10vw, 6rem);
+    max-width: 800px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .roll-title {
+    font-family: 'Bodoni Moda', serif;
+    font-size: clamp(2.5rem, 8vw, 4rem);
+    font-style: italic;
+    font-weight: 500;
+    margin: 0;
+    letter-spacing: -0.02em;
+  }
+
+  .roll-poem-global {
+    font-family: 'Bodoni Moda', serif;
+    font-style: italic;
+    color: var(--text-muted);
+    font-size: clamp(1rem, 4vw, 1.3rem);
+    line-height: 1.6;
+    margin: 0;
+    max-width: 600px;
+    opacity: 0.8;
+  }
+
+  .roll-line {
+    height: 1px;
+    width: 100px;
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .image-wrapper {
+    display: grid;
+    grid-template-columns: 1fr minmax(auto, 1000px) 1fr;
+    gap: 2rem;
+    max-width: 1600px;
+    margin: 0 auto clamp(12rem, 30vw, 25rem);
+    padding: 0 2rem;
+    align-items: center;
+  }
+
+  .center-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
+  .side-column {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: 200px;
+  }
+
+  .thought-fragment {
+    font-family: 'Bodoni Moda', serif;
+    font-style: italic;
+    font-size: clamp(1.1rem, 2.5vw, 1.6rem);
+    color: var(--text-main);
+    opacity: 0;
+    pointer-events: none;
+    line-height: 1.4;
+    will-change: transform, opacity;
+    transition: opacity 1s ease;
+  }
+
+  .thought-fragment.left {
+    text-align: right;
+    padding-right: 2rem;
+  }
+
+  .thought-fragment.right {
+    text-align: left;
+    padding-left: 2rem;
+  }
+
+  .image-container {
+    position: relative;
+    width: 100%;
+    z-index: 2;
+  }
+  
+  .styled-image {
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.3);
+  }
+
+  .journal-caption {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 2rem;
+    opacity: 0.5;
+    transition: opacity 0.8s ease;
+  }
+
+  .image-wrapper.is-visible .journal-caption {
+    opacity: 1;
+  }
+
+  .caption-exif {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 1300px) {
+    .image-wrapper {
+      grid-template-columns: 1fr;
+      max-width: 1000px;
+    }
+    .side-column {
+      order: -1; /* Les pensées passent au dessus sur petit écran */
+      min-width: auto;
+    }
+    .thought-fragment {
+      text-align: center !important;
+      padding: 0 !important;
+      margin-bottom: 3rem;
+      opacity: 0.5 !important;
+    }
+  }
+
+  .image-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .has-overlay:hover .image-overlay { opacity: 1; }
+
+  .reveal-on-scroll {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 1s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                transform 1s cubic-bezier(0.2, 0.8, 0.2, 1);
+    will-change: opacity, transform;
+  }
+
+  .reveal-on-scroll.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>
+
+<script>
+  import { applyThemeColors } from '../scripts/utils/colors';
+
+  function initRoll() {
+    const colorTriggers = document.querySelectorAll('.color-trigger');
+    const floatingThoughts = document.querySelectorAll('.floating-thought');
+    
+    const colorObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const paletteStr = (entry.target as HTMLElement).dataset.palette;
+          const palette = paletteStr ? JSON.parse(paletteStr) : [];
+          if (palette && palette.length > 0) {
+            applyThemeColors(palette, true);
+          }
+        }
+      });
+    }, { threshold: 0.5 });
+
+    colorTriggers.forEach(t => colorObserver.observe(t));
+
+    const handleScroll = () => {
+      const vh = window.innerHeight;
+      
+      floatingThoughts.forEach(thought => {
+        const rect = thought.getBoundingClientRect();
+        const elementCenter = rect.top + rect.height / 2;
+        const distanceFromCenter = (elementCenter - vh / 2) / (vh / 2);
+        
+        if (rect.top < vh && rect.bottom > 0) {
+          const yOffset = distanceFromCenter * -80; 
+          const opacity = 1 - Math.abs(distanceFromCenter) * 1.8;
+          
+          (thought as HTMLElement).style.transform = `translateY(${yOffset}px)`;
+          (thought as HTMLElement).style.opacity = Math.max(0, Math.min(0.6, opacity)).toString();
+        }
+      });
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+
+    document.querySelectorAll('.clickable-image').forEach(el => {
+      el.addEventListener('click', () => {
+        const url = (el as HTMLElement).dataset.url || '';
+        const exif = (el as HTMLElement).dataset.exif || '';
+        const poem = (el as HTMLElement).dataset.poem || '';
+        
+        window.dispatchEvent(new CustomEvent('open-lightbox', {
+          detail: { url, exif, poem }
+        }));
+      });
+    });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }
+
+  document.addEventListener('astro:page-load', initRoll);
+</script>

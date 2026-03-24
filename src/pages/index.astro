@@ -1,0 +1,327 @@
+---
+import { getCollection } from 'astro:content';
+import Layout from '../layouts/Layout.astro';
+import SplashScreen from '../components/SplashScreen.astro';
+import Navbar from '../components/Navbar.astro';
+import { getTagCategory } from '../data/categories';
+
+const allRolls = await getCollection('rolls');
+const sortedRolls = allRolls.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+// Extraction des tags uniques
+const allTags = [...new Set(sortedRolls.flatMap(roll => roll.data.tags || []))].sort();
+
+// On regroupe les tags réels présents dans les rolls par catégorie
+const groupedTags = allTags.reduce((acc, tag) => {
+  const cat = getTagCategory(tag);
+  if (!acc[cat]) acc[cat] = [];
+  acc[cat].push(tag);
+  return acc;
+}, {} as Record<string, string[]>);
+---
+
+<Layout title="Marvelous journal of a wanderer - Street Photography">
+  <SplashScreen />
+  <Navbar mode="index" />
+
+  <main class="index-container">
+    <header class="index-header">
+      <h2>Recueil</h2>
+      <p>Instants suspendus, fragments de rues et poésie de l'ordinaire.</p>
+    </header>
+
+    <div class="filter-section" id="filter-section">
+      <div class="filter-group">
+        <span class="group-label">Vue</span>
+        <div class="group-btns">
+          <button class="filter-btn active" data-filter="all">Tout</button>
+        </div>
+      </div>
+
+      {Object.entries(groupedTags).map(([category, tags]) => (
+        <div class="filter-group">
+          <span class="group-label">{category}</span>
+          <div class="group-btns">
+            {tags.map(tag => (
+              <button class="filter-btn" data-filter={tag}>{tag}</button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <ul class="roll-list" id="roll-list">
+      {sortedRolls.map((roll, index) => (
+        <li 
+          class="roll-item" 
+          style={`animation-delay: ${0.8 + index * 0.1}s`}
+          data-tags={JSON.stringify(roll.data.tags || [])}
+        >
+          <a 
+            href={`/roll/${roll.id}`} 
+            class="roll-link color-hover-trigger" 
+            data-palette={JSON.stringify(roll.data.palette || [])}
+            data-color={roll.data.palette ? roll.data.palette[0] : "#050505"}
+          >
+            <span class="date">{roll.data.date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</span>
+            <span class="title">{roll.data.title}</span>
+            {roll.data.poem && <span class="excerpt">{roll.data.poem.substring(0, 100)}...</span>}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </main>
+
+  <style is:global>
+    /* ----- INDEX NARRATIF ----- */
+    .index-container {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 4rem 2rem;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .index-header {
+      margin-bottom: 6rem;
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    .index-header.is-visible {
+      animation: reveal 1s ease forwards;
+    }
+
+    .index-header h2 {
+      font-family: 'Bodoni Moda', serif;
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.4em;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+    }
+
+    .index-header p {
+      font-family: 'Bodoni Moda', serif;
+      font-size: clamp(1.5rem, 5vw, 2.5rem);
+      font-style: italic;
+      line-height: 1.2;
+      max-width: 600px;
+    }
+
+    /* ----- FILTRAGE ORGANISÉ ----- */
+    .filter-section {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 2.5rem;
+      margin-bottom: 6rem;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 1s ease, transform 1s ease;
+    }
+
+    @media (max-width: 640px) {
+      .filter-section {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2rem 1.5rem;
+      }
+    }
+
+    .filter-section.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+
+    .group-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3em;
+      color: var(--text-muted);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      padding-bottom: 0.5rem;
+    }
+
+    .group-btns {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .filter-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-family: 'Bodoni Moda', serif;
+      font-size: 1.1rem;
+      font-style: italic;
+      cursor: pointer;
+      padding: 0.2rem 0;
+      transition: all 0.3s ease;
+      text-align: left;
+    }
+
+    .filter-btn:hover {
+      color: var(--text-main);
+      transform: translateX(5px);
+    }
+
+    .filter-btn.active {
+      color: var(--accent);
+      padding-left: 1rem;
+      border-left: 1px solid var(--accent);
+    }
+
+    .roll-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .roll-item {
+      margin-bottom: 3rem;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+
+    .roll-item.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .roll-item.hidden {
+      display: none;
+    }
+
+    .roll-link {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .roll-link .date {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+
+    .roll-link .title {
+      font-family: 'Bodoni Moda', serif;
+      font-size: clamp(2rem, 8vw, 4rem);
+      font-style: italic;
+      transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+      display: inline-block;
+    }
+
+    .roll-link:hover .title {
+      transform: translateX(20px);
+      color: var(--accent);
+    }
+
+    .roll-link .excerpt {
+      display: block;
+      max-width: 400px;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      line-height: 1.6;
+      opacity: 0;
+      transform: translateX(20px);
+      transition: all 0.4s ease;
+    }
+
+    .roll-link:hover .excerpt {
+      opacity: 1;
+      transform: translateX(30px);
+    }
+
+    @keyframes reveal {
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+
+  <script>
+    import { applyThemeColors } from '../scripts/utils/colors';
+
+    function setupIndexColorHover() {
+      const triggers = document.querySelectorAll('.color-hover-trigger');
+      
+      triggers.forEach(trigger => {
+        trigger.addEventListener('mouseenter', () => {
+          const paletteStr = (trigger as HTMLElement).dataset.palette;
+          if (paletteStr) applyThemeColors(JSON.parse(paletteStr), true);
+        });
+
+        trigger.addEventListener('mouseleave', () => {
+          applyThemeColors([], false);
+        });
+      });
+    }
+
+    function setupIndexFilters() {
+      const filterBtns = document.querySelectorAll('.filter-btn');
+      const rollItems = document.querySelectorAll('.roll-item');
+
+      filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const filter = (btn as HTMLElement).dataset.filter;
+          if (!filter) return;
+
+          filterBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+
+          rollItems.forEach(item => {
+            const tags = JSON.parse((item as HTMLElement).dataset.tags || '[]');
+            if (filter === 'all' || tags.includes(filter)) {
+              item.classList.remove('hidden');
+              setTimeout(() => item.classList.add('is-visible'), 10);
+            } else {
+              item.classList.remove('is-visible');
+              setTimeout(() => item.classList.add('hidden'), 600);
+            }
+          });
+        });
+      });
+    }
+
+    function setupReveal() {
+      const header = document.querySelector('.index-header');
+      const filters = document.querySelector('.filter-section');
+      const items = document.querySelectorAll('.roll-item');
+
+      const revealAll = () => {
+        header?.classList.add('is-visible');
+        setTimeout(() => filters?.classList.add('is-visible'), 200);
+        items.forEach((item, i) => {
+          setTimeout(() => item.classList.add('is-visible'), 400 + (i * 100));
+        });
+      };
+
+      if (sessionStorage.getItem('splashSeen')) {
+        revealAll();
+      } else {
+        window.addEventListener('splashFinished', revealAll);
+      }
+    }
+
+    document.addEventListener('astro:page-load', () => {
+      setupIndexColorHover();
+      setupIndexFilters();
+      setupReveal();
+    });
+  </script>
+</Layout>

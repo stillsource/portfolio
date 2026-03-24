@@ -1,0 +1,181 @@
+---
+import { getCollection } from 'astro:content';
+import Layout from '../../layouts/Layout.astro';
+import Roll from '../../components/Roll.astro';
+import Navbar from '../../components/Navbar.astro';
+
+export async function getStaticPaths() {
+  const allRolls = await getCollection('rolls');
+  const sortedRolls = allRolls.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+  
+  return sortedRolls.map((roll, index) => {
+    const nextRoll = sortedRolls[index + 1] || null;
+    return {
+      params: { slug: roll.id },
+      props: { roll, nextRoll },
+    };
+  });
+}
+
+const { roll, nextRoll } = Astro.props;
+const nextUrl = nextRoll ? `/roll/${nextRoll.id}` : "/about";
+const nextLabel = nextRoll ? "Continuer l'errance" : "Fin du recueil";
+const nextTitle = nextRoll ? nextRoll.data.title : "À Propos de l'Errance";
+---
+
+<Layout title={`${roll.data.title} - Marvelous journal of a wanderer`}>
+  <Navbar mode="roll" audioUrl={roll.data.audioUrl} />
+
+  <main>
+    <Roll title={roll.data.title} poem={roll.data.poem} images={roll.data.images} dominantColor={roll.data.dominantColor} />
+    
+    <footer class="next-roll-footer reveal-on-scroll" id="next-roll-trigger" data-next-url={nextUrl}>
+      <div class="next-progress-container">
+        <div class="next-progress-bar"></div>
+      </div>
+      <span class="next-label">{nextLabel}</span>
+      <a href={nextUrl} class="next-title">{nextTitle}</a>
+    </footer>
+  </main>
+
+  <style is:global>
+    .next-roll-footer {
+      padding: 15rem 2rem 10rem;
+      text-align: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .next-progress-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .next-progress-bar {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      transition: width 2s linear;
+    }
+
+    .next-roll-footer.is-loading .next-progress-bar {
+      width: 100%;
+    }
+
+    /* Transition Cinématique vers le suivant */
+    body.is-transitioning main {
+      opacity: 0;
+      filter: blur(15px);
+      transform: scale(0.99);
+      transition: all 1s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body.is-transitioning .bg-aura {
+      opacity: 0 !important;
+      transition: opacity 1s ease;
+    }
+
+    .next-label {
+      font-family: 'Inter', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.3em;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      display: block;
+      margin-bottom: 1rem;
+    }
+
+    .next-title {
+      font-family: 'Bodoni Moda', serif;
+      font-size: clamp(2rem, 10vw, 4rem);
+      font-style: italic;
+      color: var(--text-main);
+      text-decoration: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .next-title:hover {
+      opacity: 0.7;
+    }
+
+    .reveal-on-scroll {
+      opacity: 0;
+      transform: translateY(40px);
+      transition: opacity 1s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                  transform 1s cubic-bezier(0.2, 0.8, 0.2, 1);
+      will-change: opacity, transform;
+    }
+
+    .reveal-on-scroll.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+
+  <script>
+    import { navigate } from 'astro:transitions/client';
+
+    const observerOptions = { root: null, rootMargin: '0px', threshold: 0.15 };
+    let navigationTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const observer = new IntersectionObserver((entries, observer) => {
+      entries.forEach(entry => {
+        const target = entry.target as HTMLElement;
+
+        if (entry.isIntersecting) {
+          target.classList.add('is-visible');
+          
+          // Auto-navigation logic
+          if (target.id === 'next-roll-trigger') {
+            const nextUrl = target.dataset.nextUrl;
+            if (nextUrl) {
+              target.classList.add('is-loading');
+              
+              // Déclencher le fondu cinématique plus tard (à 1.5s sur les 2.5s totaux)
+              setTimeout(() => {
+                if (target.classList.contains('is-visible')) {
+                  document.body.classList.add('is-transitioning');
+                }
+              }, 1500);
+              
+              // Annuler tout timer existant par sécurité
+              if (navigationTimer) clearTimeout(navigationTimer);
+              
+              navigationTimer = setTimeout(() => {
+                // On vérifie une dernière fois si l'élément est toujours visible
+                if (target.classList.contains('is-visible')) {
+                  navigate(nextUrl);
+                }
+              }, 2500);
+            }
+          }
+          
+          // Pour les éléments classiques, on arrête d'observer une fois visible
+          if (target.id !== 'next-roll-trigger') {
+            observer.unobserve(target);
+          }
+        } else {
+          // L'utilisateur a scrollé en arrière (l'élément n'est plus visible)
+          if (target.id === 'next-roll-trigger') {
+            target.classList.remove('is-visible', 'is-loading');
+            document.body.classList.remove('is-transitioning');
+            if (navigationTimer) {
+              clearTimeout(navigationTimer);
+              navigationTimer = null;
+            }
+          }
+        }
+      });
+    }, observerOptions);
+
+    document.addEventListener('astro:page-load', () => {
+      const elements = document.querySelectorAll('.reveal-on-scroll');
+      elements.forEach(el => observer.observe(el));
+    });
+  </script>
+</Layout>

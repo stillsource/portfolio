@@ -1,0 +1,134 @@
+---
+// Navbar.astro
+import AudioPlayer from './AudioPlayer.astro';
+
+interface Props {
+  mode?: 'index' | 'roll' | 'about';
+  audioUrl?: string;
+}
+
+const { mode = 'index', audioUrl } = Astro.props;
+---
+
+<div id="main-nav" class={`nav-container ${mode !== 'index' ? 'is-visible' : ''}`}>
+  <nav class="tag-menu">
+    {mode !== 'about' && (
+      <>
+        <a href="/" class="brand">Marvelous journal of a wanderer</a>
+        <div class="separator"></div>
+      </>
+    )}
+    
+    {mode === 'index' && (
+      <>
+        <AudioPlayer audioUrl={audioUrl} />
+        <a href="/about" class="tag-link">À propos</a>
+      </>
+    )}
+
+    {mode === 'roll' && (
+      <>
+        <a href="/" class="tag-link">Index</a>
+        <AudioPlayer audioUrl={audioUrl} />
+        <a href="/about" class="tag-link">À propos</a>
+      </>
+    )}
+
+    {mode === 'about' && (
+      <>
+        <a href="/" class="tag-link">Retour au Flux</a>
+      </>
+    )}
+  </nav>
+</div>
+
+<style>
+  .nav-container {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translate(-50%, 0);
+    z-index: 100;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.8s ease, visibility 0.8s ease;
+  }
+  
+  .nav-container.is-visible {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .tag-menu {
+    background: color-mix(in srgb, var(--text-main) 10%, rgba(20, 20, 20, 0.6));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.5rem 1.5rem;
+    border-radius: 50px;
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    white-space: nowrap;
+    transition: background 2s ease;
+  }
+
+  .brand {
+    font-family: 'Bodoni Moda', serif;
+    font-weight: 700;
+    font-style: italic;
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 1.2rem;
+  }
+
+  .separator {
+    width: 1px;
+    height: 15px;
+    background: rgba(255,255,255,0.2);
+  }
+
+  .tag-link { 
+    color: var(--text-muted); 
+    text-decoration: none; 
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    transition: color 0.3s ease;
+  }
+
+  .tag-link:hover {
+    color: var(--accent);
+  }
+
+  @media (max-width: 640px) {
+    .brand { display: none; }
+    .separator { display: none; }
+    .tag-menu { gap: 1rem; padding: 0.5rem 1rem; }
+  }
+</style>
+
+<script>
+  function setupNavVisibility() {
+    const nav = document.getElementById('main-nav');
+    if (!nav) return;
+
+    // Si on est sur l'index, on attend le splash
+    if (window.location.pathname === '/') {
+      const showNav = () => nav.classList.add('is-visible');
+      if (sessionStorage.getItem('splashSeen')) {
+        showNav();
+      }
+      window.addEventListener('splashFinished', showNav);
+    } else {
+      // Sinon on affiche tout de suite (déjà fait par la classe CSS ou on force)
+      nav.classList.add('is-visible');
+    }
+  }
+
+  document.addEventListener('astro:page-load', setupNavVisibility);
+</script>

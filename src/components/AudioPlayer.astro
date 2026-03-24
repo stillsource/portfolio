@@ -1,0 +1,107 @@
+---
+// AudioPlayer.astro
+// Composant discret pour jouer une ambiance sonore
+interface Props {
+  audioUrl?: string;
+}
+const { audioUrl = '/ambiance-rue.mp3' } = Astro.props;
+---
+<div class="audio-controls" data-current-src={audioUrl}>
+  <button id="audio-toggle" class="audio-btn" aria-label="Activer l'ambiance sonore">
+    <span class="wave w1"></span>
+    <span class="wave w2"></span>
+    <span class="wave w3"></span>
+  </button>
+  
+  <audio id="bg-audio" loop transition:persist>
+    <source src={audioUrl} type="audio/mpeg">
+  </audio>
+</div>
+
+<style>
+  .audio-controls {
+    display: flex;
+    align-items: center;
+  }
+
+  .audio-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 3px;
+    height: 20px;
+    padding: 0 10px;
+    opacity: 0.5;
+    transition: opacity 0.3s ease;
+  }
+
+  .audio-btn:hover {
+    opacity: 1;
+  }
+
+  .wave {
+    width: 2px;
+    background-color: var(--accent, #fff);
+    border-radius: 2px;
+    transition: height 0.2s ease;
+  }
+
+  /* État initial (Muet) : petites barres immobiles */
+  .w1, .w3 { height: 4px; }
+  .w2 { height: 8px; }
+
+  /* État Actif (En lecture) : animation des vagues */
+  .audio-btn.is-playing .wave {
+    animation: playWave 1s infinite alternate;
+  }
+
+  .audio-btn.is-playing .w1 { animation-delay: 0.1s; }
+  .audio-btn.is-playing .w2 { animation-delay: 0.3s; }
+  .audio-btn.is-playing .w3 { animation-delay: 0.5s; }
+
+  @keyframes playWave {
+    0% { height: 4px; }
+    100% { height: 16px; }
+  }
+</style>
+
+<script>
+  function setupAudio() {
+    const btn = document.getElementById('audio-toggle');
+    const audio = document.getElementById('bg-audio') as HTMLAudioElement;
+    const container = document.querySelector('.audio-controls') as HTMLElement;
+
+    if (!btn || !audio || !container) return;
+
+    // Mise à jour de la source si elle a changé (contextuelle)
+    const newSrc = container.dataset.currentSrc;
+    if (newSrc && !audio.src.includes(newSrc)) {
+      const wasPlaying = !audio.paused;
+      audio.src = newSrc;
+      if (wasPlaying) {
+        audio.play().catch(() => btn.classList.remove('is-playing'));
+      }
+    }
+
+    if (!audio.paused) {
+      btn.classList.add('is-playing');
+    }
+
+    btn.addEventListener('click', () => {
+      if (audio.paused) {
+        audio.volume = 0.3; 
+        audio.play().then(() => {
+          btn.classList.add('is-playing');
+        }).catch(e => console.log("Lecture audio bloquée", e));
+      } else {
+        audio.pause();
+        btn.classList.remove('is-playing');
+      }
+    });
+  }
+
+  document.addEventListener('astro:page-load', setupAudio);
+</script>

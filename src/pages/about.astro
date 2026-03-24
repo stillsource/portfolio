@@ -1,0 +1,243 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+---
+
+<Layout title="À propos - Marvelous journal of a wanderer">
+  <Navbar mode="about" />
+  
+  <main class="about-wrapper">
+    <div class="editorial-grid">
+      <!-- Colonne Image -->
+      <aside class="image-column reveal-on-scroll">
+        <div class="portrait-container">
+          <div class="portrait-placeholder">
+            <span class="placeholder-text">Portrait de l'errant</span>
+          </div>
+          <!-- 
+            Plus tard, remplacez par votre image réelle :
+            <img src="/votre-photo.jpg" alt="Portrait" class="profile-img" /> 
+          -->
+        </div>
+      </aside>
+
+      <!-- Colonne Texte -->
+      <article class="text-column">
+        <header class="reveal-on-scroll">
+          <span class="pre-title">Manifeste</span>
+          <h1 class="main-title">Marvelous journal of a wanderer</h1>
+        </header>
+
+        <div class="content reveal-on-scroll">
+          <p class="drop-cap">
+            Photographe de rue passionné, je capture l'essence de l'instant urbain à travers l'objectif de mon Fujifilm. Ce portfolio n'est pas une simple galerie, mais un carnet de bord visuel, une collection de moments suspendus organisés par balades et par atmosphères.
+          </p>
+          <p>
+            L'errance est ma méthode. Sans but précis, je parcours les villes pour y débusquer la poésie de l'ordinaire, le jeu des ombres sur le béton, et cette lumière qui transforme une ruelle banale en un théâtre de néons ou de brume. 
+          </p>
+          <p>
+            Chaque "Roll" présenté ici est le fragment d'une histoire vécue, une immersion sensorielle où la couleur et le silence se répondent. Bienvenue dans mon journal.
+          </p>
+        </div>
+
+        <footer class="contact-section reveal-on-scroll">
+          <div class="signature">Wanderer</div>
+          <div class="contact-links">
+            <a href="mailto:votre.email@example.com">Email</a>
+            <a href="https://instagram.com/votre_pseudo" target="_blank" rel="noopener noreferrer">Instagram</a>
+          </div>
+        </footer>
+      </article>
+    </div>
+  </main>
+
+  <style is:global>
+    .about-wrapper {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding: 8rem 2rem 12rem; /* Augmentation de la marge basse */
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .editorial-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 6rem;
+      align-items: start;
+    }
+
+    /* --- Colonne Image --- */
+    .image-column {
+      position: sticky;
+      top: 8rem;
+    }
+
+    .portrait-container {
+      width: 100%;
+      aspect-ratio: 3 / 4;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .portrait-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px dashed rgba(255, 255, 255, 0.1);
+      margin: 10px;
+    }
+
+    .placeholder-text {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--text-muted);
+    }
+
+    /* --- Colonne Texte --- */
+    .text-column {
+      display: flex;
+      flex-direction: column;
+      gap: 3rem;
+    }
+
+    .pre-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.4em;
+      color: var(--accent);
+      display: block;
+      margin-bottom: 1rem;
+    }
+
+    .main-title {
+      font-family: 'Bodoni Moda', serif;
+      font-size: clamp(2.5rem, 5vw, 4rem);
+      font-style: italic;
+      font-weight: 500;
+      line-height: 1.1;
+      margin: 0;
+      letter-spacing: -0.02em;
+    }
+
+    .content {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .content p {
+      font-family: 'Inter', sans-serif;
+      font-size: 1.1rem;
+      line-height: 1.8;
+      color: var(--text-main);
+      margin: 0;
+    }
+
+    /* Lettrine (Drop Cap) */
+    .drop-cap::first-letter {
+      font-family: 'Bodoni Moda', serif;
+      font-size: 4.5rem;
+      float: left;
+      margin-right: 1rem;
+      line-height: 0.85;
+      color: var(--accent);
+      font-style: italic;
+      font-weight: 700;
+    }
+
+    .contact-section {
+      margin-top: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2.5rem;
+    }
+
+    .signature {
+      font-family: 'Bodoni Moda', serif;
+      font-style: italic;
+      font-size: 2rem;
+      color: var(--accent);
+    }
+
+    .contact-links {
+      display: flex;
+      gap: 2rem;
+    }
+
+    .contact-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding-bottom: 4px;
+      transition: all 0.3s ease;
+    }
+
+    .contact-links a:hover {
+      color: var(--text-main);
+      border-color: var(--accent);
+    }
+
+    /* --- Animations de Révélation --- */
+    .reveal-on-scroll {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 1.2s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                  transform 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .reveal-on-scroll.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* --- Responsive --- */
+    @media (max-width: 900px) {
+      .editorial-grid {
+        grid-template-columns: 1fr;
+        gap: 4rem;
+      }
+      .image-column {
+        position: static;
+        max-width: 400px;
+      }
+      .about-wrapper {
+        padding-top: 10rem;
+      }
+    }
+  </style>
+
+  <script>
+    function setupAboutReveal() {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+          }
+        });
+      }, { threshold: 0.1 });
+
+      document.querySelectorAll('.reveal-on-scroll').forEach(el => observer.observe(el));
+      
+      // On force une couleur d'aura calme pour la page À Propos
+      document.documentElement.style.setProperty('--p1', '#1a1a1a');
+      document.documentElement.style.setProperty('--p2', '#0a0a0a');
+      document.documentElement.style.setProperty('--p3', '#151515');
+      document.documentElement.style.setProperty('--p4', '#050505');
+      document.documentElement.style.setProperty('--p5', '#101010');
+    }
+
+    document.addEventListener('astro:page-load', setupAboutReveal);
+  </script>
+</Layout>
