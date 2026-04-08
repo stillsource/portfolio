@@ -9,12 +9,14 @@ const rollCollection = defineCollection({
     tags: z.array(z.string()).optional(),
     poem: z.string().optional(), // Poème global pour le Roll
     palette: z.array(z.string()).optional(), // Palette de couleurs du Roll
+    dominantColor: z.string().optional(), // Couleur dominante du Roll
     audioUrl: z.string().optional(), // URL du fichier audio contextuel
     images: z.array(z.object({
       url: z.string(),
       metadata: z.string().optional(),
       poem: z.string().optional(),
-      palette: z.array(z.string()).optional()
+      palette: z.array(z.string()).optional(),
+      dominantColor: z.string().optional()
     })), 
   }),
 });

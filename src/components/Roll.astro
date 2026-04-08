@@ -9,6 +9,7 @@ export interface Props {
     metadata?: string;
     poem?: string;
     palette?: string[];
+    dominantColor?: string;
   }[]; 
 }
 const { title, poem, dominantColor = '#050505', images } = Astro.props;
@@ -25,7 +26,7 @@ const { title, poem, dominantColor = '#050505', images } = Astro.props;
       <div 
         class="image-wrapper reveal-on-scroll color-trigger" 
         data-palette={JSON.stringify(img.palette || [dominantColor])}
-        data-color={img.palette ? img.palette[0] : dominantColor}
+        data-color={img.dominantColor || dominantColor}
       >
         <div class="side-column left-col">
           {img.poem && index % 2 === 0 && (

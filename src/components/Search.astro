@@ -1,0 +1,275 @@
+---
+// Search.astro
+---
+
+<div class="search-wrapper">
+  <button id="search-toggle" class="search-btn" aria-label="Rechercher">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+  </button>
+
+  <div id="search-overlay" class="search-overlay">
+    <div class="search-modal">
+      <header class="search-header">
+        <input type="text" id="search-input" placeholder="Rechercher un lieu, un tag, un souvenir..." autocomplete="off" />
+        <button id="search-close" class="close-btn">&times;</button>
+      </header>
+      
+      <div id="search-results" class="search-results">
+        <div class="search-placeholder">Commencez à taper pour explorer les fragments...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .search-wrapper {
+    display: flex;
+    align-items: center;
+  }
+
+  .search-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.5rem;
+    display: flex;
+    align-items: center;
+    transition: color 0.3s ease, transform 0.3s ease;
+  }
+
+  .search-btn:hover {
+    color: var(--accent);
+    transform: scale(1.1);
+  }
+
+  .search-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(5, 5, 5, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    padding: 10vh 2rem;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .search-overlay.is-open {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .search-modal {
+    width: 100%;
+    max-width: 800px;
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+  }
+
+  .search-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 1rem;
+  }
+
+  #search-input {
+    flex: 1;
+    background: none;
+    border: none;
+    font-family: 'Bodoni Moda', serif;
+    font-size: clamp(1.5rem, 5vw, 2.5rem);
+    font-style: italic;
+    color: var(--text-main);
+    outline: none;
+  }
+
+  .close-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 2rem;
+    cursor: pointer;
+    transition: color 0.3s ease;
+  }
+
+  .close-btn:hover {
+    color: var(--accent);
+  }
+
+  .search-results {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 2rem;
+    overflow-y: auto;
+    padding-bottom: 5rem;
+  }
+
+  .search-placeholder {
+    grid-column: 1 / -1;
+    text-align: center;
+    font-family: 'Bodoni Moda', serif;
+    font-style: italic;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    padding-top: 5rem;
+  }
+
+  :global(.search-result-item) {
+    animation: reveal 0.6s ease forwards;
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  :global(.search-result-link) {
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: transform 0.4s ease;
+  }
+
+  :global(.search-result-link:hover) {
+    transform: translateY(-5px);
+  }
+
+  :global(.result-img-wrapper) {
+    aspect-ratio: 16/10;
+    overflow: hidden;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.05);
+  }
+
+  :global(.result-img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.8s ease;
+  }
+
+  :global(.search-result-link:hover .result-img) {
+    transform: scale(1.05);
+  }
+
+  :global(.result-info) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  :global(.result-date) {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+  }
+
+  :global(.result-title) {
+    font-family: 'Bodoni Moda', serif;
+    font-size: 1.4rem;
+    font-style: italic;
+    color: var(--text-main);
+  }
+
+  @keyframes reveal {
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+
+<script>
+  import { applyThemeColors } from '../scripts/utils/colors';
+
+  let searchIndex: any[] = [];
+  let isIndexLoaded = false;
+
+  async function loadSearchIndex() {
+    if (isIndexLoaded) return;
+    try {
+      searchIndex = await (await fetch('/search-index.json')).json();
+      isIndexLoaded = true;
+    } catch (e) {
+      console.error("Search index load error:", e);
+    }
+  }
+
+  function setupSearch() {
+    const els = {
+      toggle: document.getElementById('search-toggle'),
+      overlay: document.getElementById('search-overlay'),
+      close: document.getElementById('search-close'),
+      input: document.getElementById('search-input') as HTMLInputElement,
+      results: document.getElementById('search-results')
+    };
+
+    if (!Object.values(els).every(Boolean)) return;
+
+    const toggleOverlay = (open: boolean) => {
+      els.overlay!.classList.toggle('is-open', open);
+      document.body.style.overflow = open ? 'hidden' : '';
+      if (open) {
+        loadSearchIndex().then(() => els.input!.focus());
+      } else {
+        els.input!.value = '';
+        renderResults([]);
+      }
+    };
+
+    const renderResults = (results: any[]) => {
+      if (!els.results) return;
+      
+      if (results.length === 0) {
+        els.results.innerHTML = els.input!.value 
+          ? '<div class="search-placeholder">Aucun fragment trouvé pour cette quête...</div>'
+          : '<div class="search-placeholder">Commencez à taper pour explorer les fragments...</div>';
+        return;
+      }
+
+      els.results.innerHTML = results.map((res, i) => `
+        <div class="search-result-item" style="animation-delay: ${i * 0.05}s">
+          <a href="/roll/${res.id}" class="search-result-link result-trigger" data-palette='${JSON.stringify(res.palette || [])}'>
+            <div class="result-img-wrapper">
+              <img src="${res.cover}" alt="${res.title}" class="result-img" loading="lazy" />
+            </div>
+            <div class="result-info">
+              <span class="result-date">${new Date(res.date).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</span>
+              <span class="result-title">${res.title}</span>
+            </div>
+          </a>
+        </div>
+      `).join('');
+
+      els.results.querySelectorAll('.result-trigger').forEach(el => {
+        el.addEventListener('mouseenter', () => applyThemeColors(JSON.parse((el as HTMLElement).dataset.palette || '[]'), true));
+        el.addEventListener('mouseleave', () => applyThemeColors([], false));
+      });
+    };
+
+    els.toggle!.addEventListener('click', () => toggleOverlay(true));
+    els.close!.addEventListener('click', () => toggleOverlay(false));
+    
+    els.input!.addEventListener('input', () => {
+      const q = els.input!.value.toLowerCase().trim();
+      if (!q) return renderResults([]);
+
+      const filtered = searchIndex.filter(item => 
+        item.title.toLowerCase().includes(q) || 
+        item.tags.some((t: string) => t.toLowerCase().includes(q)) ||
+        (item.poem && item.poem.toLowerCase().includes(q))
+      );
+      renderResults(filtered.slice(0, 12));
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && els.overlay!.classList.contains('is-open')) toggleOverlay(false);
+    });
+  }
+
+  document.addEventListener('astro:page-load', setupSearch);
+</script>

@@ -1,6 +1,7 @@
 ---
 // Navbar.astro
 import AudioPlayer from './AudioPlayer.astro';
+import Search from './Search.astro';
 
 interface Props {
   mode?: 'index' | 'roll' | 'about';
@@ -15,6 +16,8 @@ const { mode = 'index', audioUrl } = Astro.props;
     {mode !== 'about' && (
       <>
         <a href="/" class="brand">Marvelous journal of a wanderer</a>
+        <div class="separator"></div>
+        <Search />
         <div class="separator"></div>
       </>
     )}

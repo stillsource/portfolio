@@ -14,36 +14,35 @@ const KDRIVE_API_TOKEN = process.env.KDRIVE_API_TOKEN;
 const KDRIVE_DRIVE_ID = process.env.KDRIVE_DRIVE_ID;
 const KDRIVE_FOLDER_ID = process.env.KDRIVE_FOLDER_ID;
 
-const LOCAL_CONTENT_DIR = path.join(process.cwd(), 'src', 'content', 'rolls');
-const POETRY_DIR = path.join(process.cwd(), 'src', 'data', 'poetry');
+const LOCAL_CONTENT_DIR = path.join(process.cwd(), 'src', 'content', 'rolls', 'synced');
 const API_BASE = 'https://api.infomaniak.com/2/drive';
 
-// ... (fetchKDriveAPI, extractMetadataFromRemoteImage, getPublicUrl remain unchanged)
-
-async function getPoetryForRoll(rollSlug: string) {
-  try {
-    const poetryPath = path.join(POETRY_DIR, `${rollSlug}.md`);
-    const fileContent = await fs.readFile(poetryPath, 'utf-8');
-    const { data, content } = matter(fileContent);
-    return {
-      globalPoem: content.trim() || undefined,
-      photos: data.photos || {}
-    };
-  } catch (e) {
-    return { globalPoem: undefined, photos: {} };
-  }
-}
-
-async function fetchKDriveAPI(endpoint: string) {
+async function fetchKDriveAPI(endpoint: string, options: any = {}) {
   const url = `${API_BASE}/${KDRIVE_DRIVE_ID}${endpoint}`;
   const response = await fetch(url, {
-    headers: { 'Authorization': `Bearer ${KDRIVE_API_TOKEN}` },
+    ...options,
+    headers: { 
+      'Authorization': `Bearer ${KDRIVE_API_TOKEN}`,
+      'Content-Type': 'application/json',
+      ...options.headers 
+    },
   });
-  if (!response.ok) throw new Error(`Erreur API kDrive: ${response.status} ${response.statusText}`);
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Erreur API kDrive: ${response.status} ${response.statusText} - ${errorBody}`);
+  }
   return response.json();
 }
 
-// Télécharge l'image uniquement en mémoire pour extraire les tags, EXIF et Palette
+async function fetchKDriveFileContent(fileId: string): Promise<string> {
+  const downloadUrl = `${API_BASE}/${KDRIVE_DRIVE_ID}/files/${fileId}/download`;
+  const response = await fetch(downloadUrl, {
+    headers: { 'Authorization': `Bearer ${KDRIVE_API_TOKEN}` },
+  });
+  if (!response.ok) return '';
+  return response.text();
+}
+
 async function extractMetadataFromRemoteImage(fileId: string): Promise<{tags: string[], exif: string, palette: string[]}> {
   try {
     const downloadUrl = `${API_BASE}/${KDRIVE_DRIVE_ID}/files/${fileId}/download`;
@@ -56,16 +55,13 @@ async function extractMetadataFromRemoteImage(fileId: string): Promise<{tags: st
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     
-    // Extraction Palette avec node-vibrant
     let hexPalette: string[] = [];
     try {
       const palette = await Vibrant.from(buffer).getPalette();
-      // On récupère les couleurs disponibles dans l'ordre de pertinence
       const colors = [palette.Muted, palette.DarkMuted, palette.Vibrant, palette.LightMuted, palette.DarkVibrant];
       hexPalette = colors.filter(c => c !== null).map(c => c!.hex);
     } catch (err) { }
     
-    // On parse tout : IPTC/XMP (pour les mots clés) et TIFF (pour les données de l'appareil)
     const metadata = await exifr.parse(buffer, { iptc: true, xmp: true, tiff: true, exif: true });
     
     let tags: string[] = [];
@@ -78,10 +74,8 @@ async function extractMetadataFromRemoteImage(fileId: string): Promise<{tags: st
         tags = Array.isArray(metadata.subject) ? metadata.subject : [metadata.subject];
       }
 
-      // Construction de la chaîne EXIF "Fujifilm X-T4 • 23mm • f/2.0 • 1/500s"
       const parts = [];
       if (metadata.Make && metadata.Model) {
-        // Enlève la répétition de la marque si le modèle la contient déjà
         const make = metadata.Make.toString().replace(/Corporation/i, '').trim();
         const model = metadata.Model.toString().startsWith(make) ? metadata.Model : `${make} ${metadata.Model}`;
         parts.push(model);
@@ -110,23 +104,30 @@ async function extractMetadataFromRemoteImage(fileId: string): Promise<{tags: st
   }
 }
 
-// Fonction pour obtenir l'URL de partage public direct d'un fichier (dépend de kDrive)
-// Dans une implémentation réelle, vous devez créer un lien de partage via l'API,
-// ou si votre dossier racine est déjà public, construire l'URL directe.
 async function getPublicUrl(fileId: string): Promise<string> {
-  // EXEMPLE: Appel API pour générer ou récupérer un lien de partage direct
-  /*
-  const response = await fetchKDriveAPI(`/files/${fileId}/shares`);
-  if (response.data && response.data.length > 0) {
-    return response.data[0].url; // URL publique
+  try {
+    const shares = await fetchKDriveAPI(`/files/${fileId}/shares`);
+    if (shares.data && shares.data.length > 0) {
+      return shares.data[0].share_url;
+    }
+
+    const newShare = await fetchKDriveAPI(`/files/${fileId}/shares`, {
+      method: 'POST',
+      body: JSON.stringify({
+        type: 'public',
+        password_protected: false,
+        expiration_date: 0
+      })
+    });
+    return newShare.data.share_url;
+  } catch (e) {
+    console.log(`   ⚠️ Impossible d'obtenir l'URL de partage pour ${fileId}.`);
+    return '';
   }
-  */
-  // En attendant l'API exacte pour les liens directs de votre compte, on simule une URL
-  return `https://votre-domaine-kdrive.com/share/${fileId}.jpg`;
 }
 
 async function sync() {
-  console.log('🔄 Démarrage de la synchronisation (Mode URLs Publiques + Poésie Markdown)...');
+  console.log('🔄 Démarrage de la synchronisation (Mode kDrive Immersif)...');
 
   if (!KDRIVE_API_TOKEN || !KDRIVE_DRIVE_ID || !KDRIVE_FOLDER_ID) {
     console.error('⚠️ Variables d\'environnement manquantes. Vérifiez votre .env');
@@ -138,7 +139,9 @@ async function sync() {
 
     const data = await fetchKDriveAPI(`/files/${KDRIVE_FOLDER_ID}/files`);
     const folders = data.data.filter((file: any) => file.type === 'dir');
-    console.log(`      console.log(`📁 Trouvé ${folders.length} dossiers (Rolls) sur kDrive.`);
+    console.log(`📁 Trouvé ${folders.length} dossiers (Rolls) sur kDrive.`);
+
+    const searchIndex: any[] = [];
 
     for (const folder of folders) {
       const rollTitle = folder.name;
@@ -147,12 +150,22 @@ async function sync() {
       
       console.log(`\n📸 Traitement du Roll: ${rollTitle}`);
 
-      // Charger la poésie pour ce Roll
-      const poetry = await getPoetryForRoll(rollSlug);
-
       const folderData = await fetchKDriveAPI(`/files/${folder.id}/files`);
       
-      // Chercher un fichier audio (MP3)
+      // Recherche de poésie (.md) directement dans le dossier du Roll
+      const poetryFile = folderData.data.find((f: any) => f.type === 'file' && f.name.toLowerCase().endsWith('.md'));
+      let poetryData = { globalPoem: undefined, photos: {} };
+      
+      if (poetryFile) {
+        console.log(`   📖 Poésie trouvée: ${poetryFile.name}`);
+        const contentStr = await fetchKDriveFileContent(poetryFile.id);
+        const { data: frontmatter, content } = matter(contentStr);
+        poetryData = {
+          globalPoem: content.trim() || undefined,
+          photos: frontmatter.photos || {}
+        };
+      }
+
       const audioFile = folderData.data.find((f: any) => f.type === 'file' && f.name.toLowerCase().endsWith('.mp3'));
       let audioUrl = undefined;
       if (audioFile) {
@@ -167,7 +180,6 @@ async function sync() {
       let rollTags = new Set<string>();
       let rollPalette: string[] = [];
 
-      // Traitement parallèle des images du roll
       const imagesData = await Promise.all(photos.map(async (photo: any) => {
         console.log(`   🔗 Traitement de: ${photo.name}...`);
         
@@ -176,7 +188,6 @@ async function sync() {
         
         tags.forEach(t => rollTags.add(t));
         
-        // On garde la palette de la première image rencontrée pour le roll entier si non définie
         if (rollPalette.length === 0 && palette.length > 0) {
           rollPalette = palette;
         }
@@ -184,29 +195,48 @@ async function sync() {
         return {
           url: publicUrl,
           metadata: exif || undefined,
-          poem: poetry.photos[photo.name] || undefined,
-          palette: palette
+          poem: poetryData.photos[photo.name] || undefined,
+          palette: palette,
+          dominantColor: palette.length > 0 ? palette[0] : undefined
         };
       }));
 
-      // Générer le fichier Markdown
-      const rollPoemAttr = poetry.globalPoem ? `poem: ${JSON.stringify(poetry.globalPoem)}\n` : '';
+      const tagsArray = Array.from(rollTags);
+      
+      // Ajout à l'index de recherche global
+      searchIndex.push({
+        id: rollSlug,
+        title: rollTitle,
+        date: rollDate,
+        tags: tagsArray,
+        poem: poetryData.globalPoem,
+        cover: imagesData.length > 0 ? imagesData[0].url : undefined,
+        palette: rollPalette
+      });
+
+      const rollPoemAttr = poetryData.globalPoem ? `poem: ${JSON.stringify(poetryData.globalPoem)}\n` : '';
       const rollPaletteAttr = rollPalette.length > 0 ? `palette: ${JSON.stringify(rollPalette)}\n` : '';
+      const rollDominantColorAttr = rollPalette.length > 0 ? `dominantColor: "${rollPalette[0]}"\n` : '';
       const rollAudioAttr = audioUrl ? `audioUrl: "${audioUrl}"\n` : '';
       
       const mdContent = `---
 title: "${rollTitle}"
 date: ${rollDate}
-tags: ${JSON.stringify(Array.from(rollTags))}
-${rollPoemAttr}${rollPaletteAttr}${rollAudioAttr}images: ${JSON.stringify(imagesData)}
+tags: ${JSON.stringify(tagsArray)}
+${rollPoemAttr}${rollPaletteAttr}${rollDominantColorAttr}${rollAudioAttr}images: ${JSON.stringify(imagesData)}
 ---
 `;
       const mdPath = path.join(LOCAL_CONTENT_DIR, `${rollSlug}.md`);
       await fs.writeFile(mdPath, mdContent);
-      console.log(`   ✅ Fichier généré: ${rollSlug}.md (Tags: ${Array.from(rollTags).join(', ') || 'Aucun'})`);
+      console.log(`   ✅ Fichier généré: ${rollSlug}.md`);
     }
 
-    console.log('\n🎉 Synchronisation terminée ! (Aucun fichier lourd stocké localement)');
+    // Sauvegarde de l'index de recherche global
+    const indexPath = path.join(process.cwd(), 'public', 'search-index.json');
+    await fs.writeFile(indexPath, JSON.stringify(searchIndex, null, 2));
+    console.log(`\n🔍 Index de recherche généré: ${indexPath}`);
+
+    console.log('\n🎉 Synchronisation terminée !');
 
   } catch (error) {
     console.error('\n❌ Erreur critique lors de la synchronisation:', error);
