@@ -274,6 +274,7 @@ const formatExif = (exif?: any, metadata?: string) => {
 
 <script>
   import { applyThemeColors } from '../scripts/utils/colors';
+  import { REVEAL_THRESHOLD } from '../scripts/utils/scroll';
 
   let currentCleanup: (() => void) | null = null;
 
@@ -310,7 +311,7 @@ const formatExif = (exif?: any, metadata?: string) => {
           }
         }
       });
-    }, { threshold: 0.2 });
+    }, { threshold: REVEAL_THRESHOLD });
 
     colorTriggers.forEach(t => colorObserver.observe(t));
 

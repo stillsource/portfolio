@@ -24,6 +24,7 @@ export function getAverageLuminance(palette: string[]): number {
 let isAuraLocked = false;
 let lastPalette: string[] = [];
 let lastVisibility = false;
+let pendingPalette: { palette: string[], isVisible: boolean } | null = null;
 
 export const setAuraLock = (lock: boolean) => {
   isAuraLocked = lock;
@@ -31,6 +32,11 @@ export const setAuraLock = (lock: boolean) => {
     document.documentElement.setAttribute('data-aura-locked', 'true');
   } else {
     document.documentElement.removeAttribute('data-aura-locked');
+    // Si on a un update en attente, on l'applique maintenant
+    if (pendingPalette) {
+      applyThemeColors(pendingPalette.palette, pendingPalette.isVisible);
+      pendingPalette = null;
+    }
   }
 };
 
@@ -40,13 +46,17 @@ export const setAuraLock = (lock: boolean) => {
 export const resetColorCache = () => {
   lastPalette = [];
   lastVisibility = false;
+  pendingPalette = null;
 };
 
 /**
  * Met à jour les variables CSS globales pour l'aura et le contraste du texte.
  */
 export function applyThemeColors(palette: string[], isVisible: boolean = true, force: boolean = false) {
-  if (isAuraLocked && !force) return;
+  if (isAuraLocked && !force) {
+    pendingPalette = { palette, isVisible };
+    return;
+  }
 
   // Comparaison rapide pour éviter le travail inutile, sauf si on force
   if (!force && 

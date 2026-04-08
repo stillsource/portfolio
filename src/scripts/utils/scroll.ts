@@ -3,13 +3,18 @@
  */
 
 /**
+ * Seuil de visibilité par défaut pour les déclenchements liés au scroll.
+ */
+export const REVEAL_THRESHOLD = 0.15;
+
+/**
  * Initialise l'observateur de révélation pour les éléments .reveal-on-scroll.
  */
 export function initScrollReveal() {
   const observerOptions = {
     root: null,
     rootMargin: '0px',
-    threshold: 0.15
+    threshold: REVEAL_THRESHOLD
   };
 
   const observer = new IntersectionObserver((entries) => {
