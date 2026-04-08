@@ -220,19 +220,10 @@ import Navbar from '../components/Navbar.astro';
 
   <script>
     import { applyThemeColors } from '../scripts/utils/colors';
+    import { initScrollReveal } from '../scripts/utils/scroll';
 
     function setupAboutReveal() {
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('is-visible');
-          }
-        });
-      }, { threshold: 0.1 });
-
-      document.querySelectorAll('.reveal-on-scroll').forEach(el => observer.observe(el));
-      
-      // On force une couleur d'aura calme pour la page À Propos via l'utilitaire central
+      initScrollReveal();
       applyThemeColors(['#1a1a1a', '#0a0a0a', '#151515', '#050505', '#101010'], true);
     }
 

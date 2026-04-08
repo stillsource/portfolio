@@ -78,19 +78,8 @@ const { rolls } = Astro.props;
   </style>
 
   <script>
-    const observerOptions = { root: null, rootMargin: '0px', threshold: 0.15 };
-    const observer = new IntersectionObserver((entries, observer) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('is-visible');
-          observer.unobserve(entry.target);
-        }
-      });
-    }, observerOptions);
+    import { initScrollReveal } from '../../scripts/utils/scroll';
 
-    document.addEventListener('astro:page-load', () => {
-      const elements = document.querySelectorAll('.reveal-on-scroll');
-      elements.forEach(el => observer.observe(el));
-    });
+    document.addEventListener('astro:page-load', () => initScrollReveal());
   </script>
 </Layout>
