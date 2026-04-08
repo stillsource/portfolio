@@ -341,6 +341,11 @@ const { title } = Astro.props;
         setAuraLock(true);
       });
 
+      // Reset du scroll en haut de page à chaque navigation
+      document.addEventListener('astro:after-swap', () => {
+        window.scrollTo(0, 0);
+      });
+
       // Initialisation des composants globaux
       function initGlobalComponents() {
         const lightbox = document.getElementById('global-lightbox');

@@ -13,6 +13,7 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@astrojs/check": "^0.9.8",
     "@fontsource/bodoni-moda": "^5.2.7",
     "@fontsource/inter": "^5.2.8",
     "@fontsource/playfair-display": "^5.2.8",
@@ -22,9 +23,11 @@
     "gray-matter": "^4.0.3",
     "node-fetch": "^3.3.2",
     "node-vibrant": "^4.0.4",
-    "slugify": "^1.6.8"
+    "slugify": "^1.6.8",
+    "typescript": "^6.0.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "tsx": "^4.21.0"
   }
 }
