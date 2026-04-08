@@ -27,7 +27,13 @@ const nextTitle = nextRoll ? nextRoll.data.title : "À Propos de l'Errance";
   <Navbar mode="roll" audioUrl={roll.data.audioUrl} />
 
   <main>
-    <Roll title={roll.data.title} poem={roll.data.poem} images={roll.data.images} dominantColor={roll.data.dominantColor} />
+    <Roll 
+      title={roll.data.title} 
+      poem={roll.data.poem} 
+      images={roll.data.images} 
+      dominantColor={roll.data.dominantColor} 
+      palette={roll.data.palette}
+    />
     
     <footer class="next-roll-footer reveal-on-scroll" id="next-roll-trigger" data-next-url={nextUrl}>
       <div class="next-progress-container">
@@ -121,9 +127,10 @@ const nextTitle = nextRoll ? nextRoll.data.title : "À Propos de l'Errance";
     import { navigate } from 'astro:transitions/client';
 
     const observerOptions = { root: null, rootMargin: '0px', threshold: 0.15 };
+    const navOptions = { root: null, rootMargin: '0px', threshold: 0.8 };
     let navigationTimer: ReturnType<typeof setTimeout> | null = null;
 
-    // On s'assure que le timer est nettoyé si l'utilisateur navigue manuellement
+    // Nettoyage avant navigation
     document.addEventListener('astro:before-preparation', () => {
       if (navigationTimer) {
         clearTimeout(navigationTimer);
@@ -131,53 +138,62 @@ const nextTitle = nextRoll ? nextRoll.data.title : "À Propos de l'Errance";
       }
     });
 
-    const observer = new IntersectionObserver((entries, observer) => {
+    // Observer pour le Reveal (Général)
+    const revealObserver = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
-        const target = entry.target as HTMLElement;
-
         if (entry.isIntersecting) {
-          target.classList.add('is-visible');
-          
-          if (target.id === 'next-roll-trigger') {
-            const nextUrl = target.dataset.nextUrl;
-            if (nextUrl) {
-              target.classList.add('is-loading');
-              
-              setTimeout(() => {
-                if (target.classList.contains('is-visible')) {
-                  document.body.classList.add('is-transitioning');
-                }
-              }, 1500);
-              
-              if (navigationTimer) clearTimeout(navigationTimer);
-              
-              navigationTimer = setTimeout(() => {
-                if (target.classList.contains('is-visible')) {
-                  navigate(nextUrl);
-                }
-              }, 2500);
-            }
-          }
-          
-          if (target.id !== 'next-roll-trigger') {
-            observer.unobserve(target);
-          }
-        } else {
-          if (target.id === 'next-roll-trigger') {
-            target.classList.remove('is-visible', 'is-loading');
-            document.body.classList.remove('is-transitioning');
-            if (navigationTimer) {
-              clearTimeout(navigationTimer);
-              navigationTimer = null;
-            }
-          }
+          entry.target.classList.add('is-visible');
+          revealObserver.unobserve(entry.target);
         }
       });
     }, observerOptions);
 
+    // Observer pour le Timer de Navigation (Spécifique au Footer)
+    const navTriggerObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const footer = document.getElementById('next-roll-trigger');
+        if (!footer) return;
+
+        if (entry.isIntersecting) {
+          const nextUrl = footer.dataset.nextUrl;
+          if (nextUrl) {
+            footer.classList.add('is-loading');
+            
+            // Délai pour l'effet de flou (transition cinématique)
+            setTimeout(() => {
+              if (footer.classList.contains('is-loading')) {
+                document.body.classList.add('is-transitioning');
+              }
+            }, 1500);
+            
+            if (navigationTimer) clearTimeout(navigationTimer);
+            
+            navigationTimer = setTimeout(() => {
+              if (footer.classList.contains('is-loading')) {
+                navigate(nextUrl);
+              }
+            }, 2500);
+          }
+        } else {
+          // Annulation si on remonte
+          footer.classList.remove('is-loading');
+          document.body.classList.remove('is-transitioning');
+          if (navigationTimer) {
+            clearTimeout(navigationTimer);
+            navigationTimer = null;
+          }
+        }
+      });
+    }, navOptions);
+
     document.addEventListener('astro:page-load', () => {
-      const elements = document.querySelectorAll('.reveal-on-scroll');
-      elements.forEach(el => observer.observe(el));
+      const reveals = document.querySelectorAll('.reveal-on-scroll');
+      reveals.forEach(el => revealObserver.observe(el));
+
+      const nextTitle = document.querySelector('.next-title');
+      if (nextTitle) {
+        navTriggerObserver.observe(nextTitle);
+      }
     });
   </script>
 </Layout>

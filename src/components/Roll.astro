@@ -4,15 +4,37 @@ export interface Props {
   title: string;
   poem?: string;
   dominantColor?: string;
+  palette?: string[];
   images: {
     url: string;
+    exif?: {
+      shutter?: string;
+      aperture?: string;
+      iso?: string;
+      body?: string;
+      lens?: string;
+      focalLength?: string;
+    };
     metadata?: string;
     poem?: string;
     palette?: string[];
     dominantColor?: string;
   }[]; 
 }
-const { title, poem, dominantColor = '#050505', images } = Astro.props;
+const { title, poem, dominantColor = '#050505', palette, images } = Astro.props;
+
+const formatExif = (exif?: any, metadata?: string) => {
+  if (metadata) return metadata;
+  if (!exif) return '';
+  const parts = [];
+  if (exif.body) parts.push(exif.body);
+  if (exif.lens) parts.push(exif.lens);
+  if (exif.focalLength) parts.push(exif.focalLength);
+  if (exif.aperture) parts.push(exif.aperture);
+  if (exif.shutter) parts.push(exif.shutter);
+  if (exif.iso) parts.push(exif.iso);
+  return parts.join(' • ');
+};
 ---
 <section class="roll-section">
   <div class="roll-header reveal-on-scroll">
@@ -21,8 +43,10 @@ const { title, poem, dominantColor = '#050505', images } = Astro.props;
     <div class="roll-line"></div>
   </div>
   
-  <div class="roll-images">
-    {images.map((img, index) => (
+  <div class="roll-images" data-roll-palette={JSON.stringify(palette || [dominantColor])}>
+    {images.map((img, index) => {
+      const exifString = formatExif(img.exif, img.metadata);
+      return (
       <div 
         class="image-wrapper reveal-on-scroll color-trigger" 
         data-palette={JSON.stringify(img.palette || [dominantColor])}
@@ -40,7 +64,7 @@ const { title, poem, dominantColor = '#050505', images } = Astro.props;
           <div 
             class="image-container has-overlay clickable-image" 
             data-url={img.url} 
-            data-exif={img.metadata || ''} 
+            data-exif={exifString} 
             data-poem={img.poem || ''}
           >
              <img 
@@ -51,7 +75,7 @@ const { title, poem, dominantColor = '#050505', images } = Astro.props;
                class="styled-image"
              />
              
-             {(img.metadata || img.poem) && (
+             {(exifString || img.poem) && (
                <div class="image-overlay">
                  {/* L'overlay est conservé techniquement pour le curseur mais vidé de son contenu visuel intrusif */}
                </div>
@@ -59,7 +83,7 @@ const { title, poem, dominantColor = '#050505', images } = Astro.props;
           </div>
           
           <div class="journal-caption">
-            {img.metadata && <span class="caption-exif">{img.metadata}</span>}
+            {exifString && <span class="caption-exif">{exifString}</span>}
           </div>
         </div>
 
@@ -71,7 +95,7 @@ const { title, poem, dominantColor = '#050505', images } = Astro.props;
           )}
         </div>
       </div>
-    ))}
+    )})}
   </div>
 </section>
 
@@ -249,6 +273,16 @@ const { title, poem, dominantColor = '#050505', images } = Astro.props;
   let currentCleanup: (() => void) | null = null;
 
   function initRoll() {
+    // Scroll to top and reset theme colors
+    window.scrollTo(0, 0);
+
+    // Initial palette from component props
+    const initialPaletteStr = document.querySelector('.roll-images')?.getAttribute('data-roll-palette');
+    const initialPalette = initialPaletteStr ? JSON.parse(initialPaletteStr) : [];
+    if (initialPalette && initialPalette.length > 0) {
+      applyThemeColors(initialPalette, true);
+    }
+
     // Nettoyage de l'instance précédente si elle existe
     if (currentCleanup) {
       currentCleanup();
