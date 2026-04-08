@@ -43,14 +43,14 @@ async function fetchKDriveFileContent(fileId: string): Promise<string> {
   return response.text();
 }
 
-async function extractMetadataFromRemoteImage(fileId: string): Promise<{tags: string[], exif: string, palette: string[]}> {
+async function extractMetadataFromRemoteImage(fileId: string): Promise<{tags: string[], exif: { shutter?: string, aperture?: string, iso?: string, body?: string, lens?: string, focalLength?: string }, palette: string[]}> {
   try {
     const downloadUrl = `${API_BASE}/${KDRIVE_DRIVE_ID}/files/${fileId}/download`;
     const response = await fetch(downloadUrl, {
       headers: { 'Authorization': `Bearer ${KDRIVE_API_TOKEN}` },
     });
     
-    if (!response.ok) return { tags: [], exif: '', palette: [] };
+    if (!response.ok) return { tags: [], exif: {}, palette: [] };
 
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -65,7 +65,7 @@ async function extractMetadataFromRemoteImage(fileId: string): Promise<{tags: st
     const metadata = await exifr.parse(buffer, { iptc: true, xmp: true, tiff: true, exif: true });
     
     let tags: string[] = [];
-    let exifString = '';
+    let exifObj: any = {};
 
     if (metadata) {
       if (metadata.Keywords) {
@@ -74,33 +74,37 @@ async function extractMetadataFromRemoteImage(fileId: string): Promise<{tags: st
         tags = Array.isArray(metadata.subject) ? metadata.subject : [metadata.subject];
       }
 
-      const parts = [];
       if (metadata.Make && metadata.Model) {
         const make = metadata.Make.toString().replace(/Corporation/i, '').trim();
         const model = metadata.Model.toString().startsWith(make) ? metadata.Model : `${make} ${metadata.Model}`;
-        parts.push(model);
+        exifObj.body = model;
       } else if (metadata.Model) {
-        parts.push(metadata.Model);
+        exifObj.body = metadata.Model;
       }
 
-      if (metadata.FocalLength) parts.push(`${metadata.FocalLength}mm`);
-      if (metadata.FNumber) parts.push(`f/${metadata.FNumber}`);
+      if (metadata.LensModel) {
+        exifObj.lens = metadata.LensModel;
+      } else if (metadata.Lens) {
+        exifObj.lens = metadata.Lens;
+      }
+
+      if (metadata.FocalLength) exifObj.focalLength = `${metadata.FocalLength}mm`;
+      if (metadata.FNumber) exifObj.aperture = `f/${metadata.FNumber}`;
+      if (metadata.ISO) exifObj.iso = `ISO ${metadata.ISO}`;
       if (metadata.ExposureTime) {
         const speed = metadata.ExposureTime < 1 ? `1/${Math.round(1/metadata.ExposureTime)}s` : `${metadata.ExposureTime}s`;
-        parts.push(speed);
+        exifObj.shutter = speed;
       }
-      
-      exifString = parts.join(' • ');
     }
     
     return { 
       tags: tags.map(tag => tag.toString().trim()), 
-      exif: exifString,
+      exif: exifObj,
       palette: hexPalette
     };
   } catch (e) {
     console.log("   ⚠️ Impossible d'extraire les métadonnées de cette image.");
-    return { tags: [], exif: '', palette: [] };
+    return { tags: [], exif: {}, palette: [] };
   }
 }
 
@@ -124,6 +128,97 @@ async function getPublicUrl(fileId: string): Promise<string> {
     console.log(`   ⚠️ Impossible d'obtenir l'URL de partage pour ${fileId}.`);
     return '';
   }
+}
+
+// --- Utilitaires de conversion de couleur (CIELAB) ---
+
+function hexToRgb(hex: string) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return { r, g, b };
+}
+
+function rgbToLab(r: number, g: number, b: number) {
+  let r_ = r / 255, g_ = g / 255, b_ = b / 255;
+  r_ = (r_ > 0.04045) ? Math.pow((r_ + 0.055) / 1.055, 2.4) : r_ / 12.92;
+  g_ = (g_ > 0.04045) ? Math.pow((g_ + 0.055) / 1.055, 2.4) : g_ / 12.92;
+  b_ = (b_ > 0.04045) ? Math.pow((b_ + 0.055) / 1.055, 2.4) : b_ / 12.92;
+  
+  let x = (r_ * 0.4124 + g_ * 0.3576 + b_ * 0.1805) * 100;
+  let y = (r_ * 0.2126 + g_ * 0.7152 + b_ * 0.0722) * 100;
+  let z = (r_ * 0.0193 + g_ * 0.1192 + b_ * 0.9505) * 100;
+  
+  x /= 95.047; y /= 100.000; z /= 108.883;
+  x = (x > 0.008856) ? Math.pow(x, 1/3) : (7.787 * x) + (16 / 116);
+  y = (y > 0.008856) ? Math.pow(y, 1/3) : (7.787 * y) + (16 / 116);
+  z = (z > 0.008856) ? Math.pow(z, 1/3) : (7.787 * z) + (16 / 116);
+  
+  return { l: (116 * y) - 16, a: 500 * (x - y), b: 200 * (y - z) };
+}
+
+function labToRgb(l: number, a: number, b: number) {
+  let y = (l + 16) / 116;
+  let x = a / 500 + y;
+  let z = y - b / 200;
+  
+  x = (Math.pow(x, 3) > 0.008856) ? Math.pow(x, 3) : (x - 16 / 116) / 7.787;
+  y = (Math.pow(y, 3) > 0.008856) ? Math.pow(y, 3) : (y - 16 / 116) / 7.787;
+  z = (Math.pow(z, 3) > 0.008856) ? Math.pow(z, 3) : (z - 16 / 116) / 7.787;
+  
+  x *= 95.047; y *= 100.000; z *= 108.883;
+  
+  let r = x * 3.2406 + y * -1.5372 + z * -0.4986;
+  let g = x * -0.9689 + y * 1.8758 + z * 0.0415;
+  let b_ = x * 0.0557 + y * -0.2040 + z * 1.0570;
+  
+  r /= 100; g /= 100; b_ /= 100;
+  r = (r > 0.0031308) ? (1.055 * Math.pow(r, 1 / 2.4) - 0.055) : 12.92 * r;
+  g = (g > 0.0031308) ? (1.055 * Math.pow(g, 1 / 2.4) - 0.055) : 12.92 * g;
+  b_ = (b_ > 0.0031308) ? (1.055 * Math.pow(b_, 1 / 2.4) - 0.055) : 12.92 * b_;
+  
+  return {
+    r: Math.max(0, Math.min(255, Math.round(r * 255))),
+    g: Math.max(0, Math.min(255, Math.round(g * 255))),
+    b: Math.max(0, Math.min(255, Math.round(b_ * 255)))
+  };
+}
+
+function rgbToHex(r: number, g: number, b: number) {
+  const toHex = (n: number) => n.toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+/**
+ * Calcule la palette moyenne d'un Roll en utilisant l'espace CIELAB.
+ * Fusionne les palettes de N photos en 5 couleurs représentatives.
+ */
+function calculateMeanPalette(palettes: string[][]): string[] {
+  if (palettes.length === 0) return [];
+  
+  // On s'assure que toutes les palettes ont 5 couleurs (ou on prend le min)
+  const numColors = 5;
+  const labSums = Array.from({ length: numColors }, () => ({ l: 0, a: 0, b: 0, count: 0 }));
+  
+  palettes.forEach(palette => {
+    palette.forEach((hex, i) => {
+      if (i < numColors) {
+        const rgb = hexToRgb(hex);
+        const lab = rgbToLab(rgb.r, rgb.g, rgb.b);
+        labSums[i].l += lab.l;
+        labSums[i].a += lab.a;
+        labSums[i].b += lab.b;
+        labSums[i].count++;
+      }
+    });
+  });
+  
+  return labSums.map(sum => {
+    if (sum.count === 0) return '#000000';
+    const avgLab = { l: sum.l / sum.count, a: sum.a / sum.count, b: sum.b / sum.count };
+    const rgb = labToRgb(avgLab.l, avgLab.a, avgLab.b);
+    return rgbToHex(rgb.r, rgb.g, rgb.b);
+  });
 }
 
 async function sync() {
@@ -154,7 +249,7 @@ async function sync() {
       
       // Recherche de poésie (.md) directement dans le dossier du Roll
       const poetryFile = folderData.data.find((f: any) => f.type === 'file' && f.name.toLowerCase().endsWith('.md'));
-      let poetryData = { globalPoem: undefined, photos: {} };
+      let poetryData: { globalPoem?: string, photos: Record<string, string> } = { globalPoem: undefined, photos: {} };
       
       if (poetryFile) {
         console.log(`   📖 Poésie trouvée: ${poetryFile.name}`);
@@ -178,7 +273,7 @@ async function sync() {
       );
 
       let rollTags = new Set<string>();
-      let rollPalette: string[] = [];
+      let allPalettes: string[][] = [];
 
       const imagesData = await Promise.all(photos.map(async (photo: any) => {
         console.log(`   🔗 Traitement de: ${photo.name}...`);
@@ -188,13 +283,13 @@ async function sync() {
         
         tags.forEach(t => rollTags.add(t));
         
-        if (rollPalette.length === 0 && palette.length > 0) {
-          rollPalette = palette;
+        if (palette.length > 0) {
+          allPalettes.push(palette);
         }
 
         return {
           url: publicUrl,
-          metadata: exif || undefined,
+          exif: exif,
           poem: poetryData.photos[photo.name] || undefined,
           palette: palette,
           dominantColor: palette.length > 0 ? palette[0] : undefined
@@ -202,6 +297,7 @@ async function sync() {
       }));
 
       const tagsArray = Array.from(rollTags);
+      const rollPalette = calculateMeanPalette(allPalettes);
       
       // Ajout à l'index de recherche global
       searchIndex.push({

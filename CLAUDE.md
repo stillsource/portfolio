@@ -44,7 +44,7 @@ Astro build
        └─ src/pages/tags/[tag].astro     (tag filter pages)
 ```
 
-Each synced `.md` file has frontmatter with: `title`, `date`, `tags[]`, `poem`, `palette[]` (hex colors), `dominantColor`, `audioUrl`, and an `images[]` array (url, metadata/EXIF string, poem, palette, dominantColor per photo).
+Each synced `.md` file has frontmatter with: `title`, `date`, `tags[]`, `poem`, `palette[]` (hex colors), `dominantColor`, `audioUrl`, and an `images[]` array (url, exif object, poem, palette, dominantColor per photo).
 
 ### Aura System (Ambient Color Engine)
 

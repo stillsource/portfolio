@@ -1,0 +1,12 @@
+{
+  "turn_count": 1,
+  "last_session_id": "2cd6315b-a2cd-41e9-862a-9e1e01bdc58a",
+  "last_event_key": "2cd6315b-a2cd-41e9-862a-9e1e01bdc58a:transcript:48ab1e08d0654b9602148b2c487ce7437fb2c934de66a63d3a0a20f0fdf2bf7f",
+  "last_transcript_hash": "48ab1e08d0654b9602148b2c487ce7437fb2c934de66a63d3a0a20f0fdf2bf7f",
+  "last_model": "gemini-3-flash-preview",
+  "last_turn_total_tokens": 50355,
+  "last_session_total_tokens": 50355,
+  "cwd_mode": "parent-leaf",
+  "last_cwd_label": "perso_projects/portfolio-astro",
+  "updated_at": "2026-04-08T15:50:00.480Z"
+}

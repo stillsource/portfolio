@@ -309,7 +309,8 @@ const groupedTags = allTags.reduce((acc, tag) => {
       const items = document.querySelectorAll('.roll-item');
 
       const revealAll = () => {
-        header?.classList.add('is-visible');
+        if (!header) return;
+        header.classList.add('is-visible');
         setTimeout(() => filters?.classList.add('is-visible'), 200);
         items.forEach((item, i) => {
           setTimeout(() => item.classList.add('is-visible'), 400 + (i * 100));
@@ -319,11 +320,7 @@ const groupedTags = allTags.reduce((acc, tag) => {
       if (sessionStorage.getItem('splashSeen')) {
         revealAll();
       } else {
-        // On n'attache qu'une fois au window
-        if (!(window as any).__reveal_initialized) {
-          window.addEventListener('splashFinished', revealAll);
-          (window as any).__reveal_initialized = true;
-        }
+        window.addEventListener('splashFinished', revealAll, { once: true });
       }
     }
 

@@ -23,6 +23,7 @@ const rollCollection = defineCollection({
     images: z.array(z.object({
       url: z.string(),
       exif: exifSchema.optional(),
+      metadata: z.string().optional(),
       poem: z.string().optional(),
       palette: z.array(z.string()).optional(),
       dominantColor: z.string().optional()

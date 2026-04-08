@@ -125,8 +125,9 @@ const { mode = 'index', audioUrl } = Astro.props;
       const showNav = () => nav.classList.add('is-visible');
       if (sessionStorage.getItem('splashSeen')) {
         showNav();
+      } else {
+        window.addEventListener('splashFinished', showNav, { once: true });
       }
-      window.addEventListener('splashFinished', showNav);
     } else {
       // Sinon on affiche tout de suite (déjà fait par la classe CSS ou on force)
       nav.classList.add('is-visible');

@@ -273,11 +273,14 @@ const formatExif = (exif?: any, metadata?: string) => {
   let currentCleanup: (() => void) | null = null;
 
   function initRoll() {
+    const rollContainer = document.querySelector('.roll-images');
+    if (!rollContainer) return;
+
     // Scroll to top and reset theme colors
     window.scrollTo(0, 0);
 
     // Initial palette from component props
-    const initialPaletteStr = document.querySelector('.roll-images')?.getAttribute('data-roll-palette');
+    const initialPaletteStr = rollContainer.getAttribute('data-roll-palette');
     const initialPalette = initialPaletteStr ? JSON.parse(initialPaletteStr) : [];
     if (initialPalette && initialPalette.length > 0) {
       applyThemeColors(initialPalette, true);
