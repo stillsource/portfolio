@@ -6,12 +6,12 @@ import (
 	"image/jpeg"
 	"os"
 	"path/filepath"
+	"solenya-sync/internal/metadata"
 
 	"github.com/bbrks/go-blurhash"
 	"github.com/chai2010/webp"
 	"github.com/disintegration/imaging"
 	"github.com/gen2brain/avif"
-	"github.com/lucasb-eyer/go-colorful"
 )
 
 type Processor struct {
@@ -43,7 +43,7 @@ func (p *Processor) Process(src image.Image, w, h int) (*ProcessResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	palette := p.GeneratePalette(img, 5)
+	palette := metadata.GeneratePalette(img, 5)
 
 	// 3. Apply Watermark (last step before saving)
 	final := p.ApplyWatermark(img)
@@ -91,62 +91,6 @@ func (p *Processor) GenerateBlurhash(src image.Image, x, y int) (string, error) 
 		return "", fmt.Errorf("blurhash failed: %w", err)
 	}
 	return h, nil
-}
-
-func (p *Processor) GeneratePalette(src image.Image, numColors int) []string {
-	bounds := src.Bounds()
-	stepX, stepY := bounds.Dx()/32, bounds.Dy()/32
-	if stepX < 1 { stepX = 1 }
-	if stepY < 1 { stepY = 1 }
-
-	var pixels []colorful.Color
-	for y := bounds.Min.Y; y < bounds.Max.Y; y += stepY {
-		for x := bounds.Min.X; x < bounds.Max.X; x += stepX {
-			c, _ := colorful.MakeColor(src.At(x, y))
-			pixels = append(pixels, c)
-		}
-	}
-
-	if len(pixels) == 0 { return nil }
-
-	// K-means clustering in Lab space
-	centroids := make([]colorful.Color, numColors)
-	for i := range centroids {
-		centroids[i] = pixels[(i*len(pixels))/numColors]
-	}
-
-	for iter := 0; iter < 5; iter++ { // 5 iterations is usually enough for a good-enough palette
-		newCentroids := make([]struct{ l, a, b float64; count int }, numColors)
-		for _, p := range pixels {
-			bestDist, bestIdx := 1e18, 0
-			for i, c := range centroids {
-				d := p.DistanceLab(c)
-				if d < bestDist {
-					bestDist, bestIdx = d, i
-				}
-			}
-			l, a, b := p.Lab()
-			newCentroids[bestIdx].l += l
-			newCentroids[bestIdx].a += a
-			newCentroids[bestIdx].b += b
-			newCentroids[bestIdx].count++
-		}
-		for i := range centroids {
-			if newCentroids[i].count > 0 {
-				centroids[i] = colorful.Lab(
-					newCentroids[i].l/float64(newCentroids[i].count),
-					newCentroids[i].a/float64(newCentroids[i].count),
-					newCentroids[i].b/float64(newCentroids[i].count),
-				)
-			}
-		}
-	}
-
-	res := make([]string, 0, numColors)
-	for _, c := range centroids {
-		res = append(res, c.Hex())
-	}
-	return res
 }
 
 func (p *Processor) SaveAsJPEG(img image.Image, q int, path string) error {
