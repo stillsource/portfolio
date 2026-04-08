@@ -35,13 +35,22 @@ export const setAuraLock = (lock: boolean) => {
 };
 
 /**
+ * Réinitialise le cache de la palette pour forcer une mise à jour au prochain appel.
+ */
+export const resetColorCache = () => {
+  lastPalette = [];
+  lastVisibility = false;
+};
+
+/**
  * Met à jour les variables CSS globales pour l'aura et le contraste du texte.
  */
-export function applyThemeColors(palette: string[], isVisible: boolean = true) {
-  if (isAuraLocked) return;
+export function applyThemeColors(palette: string[], isVisible: boolean = true, force: boolean = false) {
+  if (isAuraLocked && !force) return;
 
-  // Comparaison rapide pour éviter le travail inutile
-  if (isVisible === lastVisibility && 
+  // Comparaison rapide pour éviter le travail inutile, sauf si on force
+  if (!force && 
+      isVisible === lastVisibility && 
       palette.length === lastPalette.length && 
       palette.every((c, i) => c === lastPalette[i])) {
     return;
@@ -72,18 +81,19 @@ export function applyThemeColors(palette: string[], isVisible: boolean = true) {
 
   const avgLum = getAverageLuminance(palette);
   
-  // Bascule dynamique du contraste
+  // Bascule dynamique du contraste et de l'opacité
   if (avgLum > 0.38) {
     root.style.setProperty('--text-main', '#000000');
     root.style.setProperty('--text-muted', '#1a1a1a');
     root.style.setProperty('--accent', '#000000');
-    root.style.setProperty('--aura-opacity', '0.5');
+    root.style.setProperty('--aura-opacity', '0.6'); // Augmenté pour les thèmes clairs
+    // On teinte légèrement le fond avec la couleur dominante pour éviter le noir pur
+    root.style.setProperty('--bg-base', `color-mix(in srgb, ${baseColor} 12%, #020202)`);
   } else {
     root.style.setProperty('--text-main', '#ffffff');
     root.style.setProperty('--text-muted', '#bbbbbb');
     root.style.setProperty('--accent', '#ffffff');
-    root.style.setProperty('--aura-opacity', '0.35');
+    root.style.setProperty('--aura-opacity', '0.4');
+    root.style.setProperty('--bg-base', '#050505');
   }
-  
-  root.style.setProperty('--bg-base', '#050505');
 }

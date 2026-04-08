@@ -35,7 +35,12 @@ const nextTitle = nextRoll ? nextRoll.data.title : "À Propos de l'Errance";
       palette={roll.data.palette}
     />
     
-    <footer class="next-roll-footer reveal-on-scroll" id="next-roll-trigger" data-next-url={nextUrl}>
+    <footer 
+      class="next-roll-footer reveal-on-scroll color-trigger" 
+      id="next-roll-trigger" 
+      data-next-url={nextUrl}
+      data-palette={JSON.stringify(nextRoll?.data.palette || [])}
+    >
       <div class="next-progress-container">
         <div class="next-progress-bar"></div>
       </div>

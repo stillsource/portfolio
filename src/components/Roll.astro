@@ -23,6 +23,11 @@ export interface Props {
 }
 const { title, poem, dominantColor = '#050505', palette, images } = Astro.props;
 
+// Fallback robuste pour l'aura initiale
+const effectivePalette = palette && palette.length > 0 
+  ? palette 
+  : (images[0]?.palette && images[0].palette.length > 0 ? images[0].palette : [dominantColor]);
+
 const formatExif = (exif?: any, metadata?: string) => {
   if (metadata) return metadata;
   if (!exif) return '';
@@ -43,7 +48,7 @@ const formatExif = (exif?: any, metadata?: string) => {
     <div class="roll-line"></div>
   </div>
   
-  <div class="roll-images" data-roll-palette={JSON.stringify(palette || [dominantColor])}>
+  <div class="roll-images" data-roll-palette={JSON.stringify(effectivePalette)}>
     {images.map((img, index) => {
       const exifString = formatExif(img.exif, img.metadata);
       return (
@@ -283,7 +288,7 @@ const formatExif = (exif?: any, metadata?: string) => {
     const initialPaletteStr = rollContainer.getAttribute('data-roll-palette');
     const initialPalette = initialPaletteStr ? JSON.parse(initialPaletteStr) : [];
     if (initialPalette && initialPalette.length > 0) {
-      applyThemeColors(initialPalette, true);
+      applyThemeColors(initialPalette, true, true); // Force update
     }
 
     // Nettoyage de l'instance précédente si elle existe
@@ -305,7 +310,7 @@ const formatExif = (exif?: any, metadata?: string) => {
           }
         }
       });
-    }, { threshold: 0.5 });
+    }, { threshold: 0.2 });
 
     colorTriggers.forEach(t => colorObserver.observe(t));
 

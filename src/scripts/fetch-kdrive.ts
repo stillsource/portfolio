@@ -16,10 +16,73 @@ const KDRIVE_FOLDER_ID = process.env.KDRIVE_FOLDER_ID;
 
 const LOCAL_CONTENT_DIR = path.join(process.cwd(), 'src', 'content', 'rolls', 'synced');
 const API_BASE = 'https://api.infomaniak.com/2/drive';
+const MAX_RETRIES = 3;
+const FETCH_TIMEOUT = 30000; // 30 seconds
 
-async function fetchKDriveAPI(endpoint: string, options: any = {}) {
+interface KDriveFile {
+  id: string;
+  name: string;
+  type: 'dir' | 'file';
+  created_at: number;
+}
+
+interface KDriveResponse {
+  data: KDriveFile[];
+}
+
+interface ImageMetadata {
+  tags: string[];
+  exif: {
+    shutter?: string;
+    aperture?: string;
+    iso?: string;
+    body?: string;
+    lens?: string;
+    focalLength?: string;
+  };
+  palette: string[];
+}
+
+interface ImageData {
+  url: string;
+  exif: ImageMetadata['exif'];
+  poem?: string;
+  palette: string[];
+  dominantColor?: string;
+}
+
+interface RollToWrite {
+  path: string;
+  content: string;
+  slug: string;
+}
+
+async function fetchWithRetry(url: string, options: RequestInit = {}, retries = MAX_RETRIES): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+  
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(id);
+    
+    if (!response.ok && retries > 0 && response.status >= 500) {
+      console.warn(`   ⚠️ Erreur ${response.status}. Nouvelle tentative (${MAX_RETRIES - retries + 1}/${MAX_RETRIES})...`);
+      return fetchWithRetry(url, options, retries - 1);
+    }
+    return response;
+  } catch (error: any) {
+    clearTimeout(id);
+    if (retries > 0 && (error.name === 'AbortError' || error.name === 'FetchError' || error.code === 'ECONNRESET')) {
+      console.warn(`   ⚠️ Erreur réseau (${error.message}). Nouvelle tentative (${MAX_RETRIES - retries + 1}/${MAX_RETRIES})...`);
+      return fetchWithRetry(url, options, retries - 1);
+    }
+    throw error;
+  }
+}
+
+async function fetchKDriveAPI(endpoint: string, options: RequestInit = {}): Promise<KDriveResponse> {
   const url = `${API_BASE}/${KDRIVE_DRIVE_ID}${endpoint}`;
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     ...options,
     headers: { 
       'Authorization': `Bearer ${KDRIVE_API_TOKEN}`,
@@ -34,23 +97,31 @@ async function fetchKDriveAPI(endpoint: string, options: any = {}) {
   return response.json();
 }
 
-async function fetchKDriveFileContent(fileId: string): Promise<string> {
-  const downloadUrl = `${API_BASE}/${KDRIVE_DRIVE_ID}/files/${fileId}/download`;
-  const response = await fetch(downloadUrl, {
-    headers: { 'Authorization': `Bearer ${KDRIVE_API_TOKEN}` },
-  });
-  if (!response.ok) return '';
-  return response.text();
-}
-
-async function extractMetadataFromRemoteImage(fileId: string): Promise<{tags: string[], exif: { shutter?: string, aperture?: string, iso?: string, body?: string, lens?: string, focalLength?: string }, palette: string[]}> {
+async function fetchKDriveFileContent(fileId: string): Promise<string | null> {
   try {
     const downloadUrl = `${API_BASE}/${KDRIVE_DRIVE_ID}/files/${fileId}/download`;
-    const response = await fetch(downloadUrl, {
+    const response = await fetchWithRetry(downloadUrl, {
+      headers: { 'Authorization': `Bearer ${KDRIVE_API_TOKEN}` },
+    });
+    if (!response.ok) return null;
+    return response.text();
+  } catch (e) {
+    console.error(`   ❌ Erreur lors du téléchargement du fichier ${fileId}:`, e);
+    return null;
+  }
+}
+
+async function extractMetadataFromRemoteImage(fileId: string): Promise<ImageMetadata> {
+  try {
+    const downloadUrl = `${API_BASE}/${KDRIVE_DRIVE_ID}/files/${fileId}/download`;
+    const response = await fetchWithRetry(downloadUrl, {
       headers: { 'Authorization': `Bearer ${KDRIVE_API_TOKEN}` },
     });
     
-    if (!response.ok) return { tags: [], exif: {}, palette: [] };
+    if (!response.ok) {
+      console.warn(`   ⚠️ Échec du téléchargement pour les métadonnées de ${fileId}`);
+      return { tags: [], exif: {}, palette: [] };
+    }
 
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -58,43 +129,50 @@ async function extractMetadataFromRemoteImage(fileId: string): Promise<{tags: st
     let hexPalette: string[] = [];
     try {
       const palette = await Vibrant.from(buffer).getPalette();
-      const colors = [palette.Muted, palette.DarkMuted, palette.Vibrant, palette.LightMuted, palette.DarkVibrant];
+      const colors = [palette.Vibrant, palette.DarkVibrant, palette.Muted, palette.LightMuted, palette.DarkMuted];
       hexPalette = colors.filter(c => c !== null).map(c => c!.hex);
-    } catch (err) { }
-    
-    const metadata = await exifr.parse(buffer, { iptc: true, xmp: true, tiff: true, exif: true });
+    } catch (err) {
+      console.warn(`   ⚠️ Impossible d'extraire la palette pour ${fileId}`);
+    }
     
     let tags: string[] = [];
-    let exifObj: any = {};
+    let exifObj: ImageMetadata['exif'] = {};
 
-    if (metadata) {
-      if (metadata.Keywords) {
-        tags = Array.isArray(metadata.Keywords) ? metadata.Keywords : [metadata.Keywords];
-      } else if (metadata.subject) {
-        tags = Array.isArray(metadata.subject) ? metadata.subject : [metadata.subject];
-      }
+    try {
+      const metadata = await exifr.parse(buffer, { iptc: true, xmp: true, tiff: true, exif: true });
+      if (metadata) {
+        if (metadata.Keywords) {
+          tags = Array.isArray(metadata.Keywords) ? metadata.Keywords : [metadata.Keywords];
+        } else if (metadata.subject) {
+          tags = Array.isArray(metadata.subject) ? metadata.subject : [metadata.subject];
+        }
 
-      if (metadata.Make && metadata.Model) {
-        const make = metadata.Make.toString().replace(/Corporation/i, '').trim();
-        const model = metadata.Model.toString().startsWith(make) ? metadata.Model : `${make} ${metadata.Model}`;
-        exifObj.body = model;
-      } else if (metadata.Model) {
-        exifObj.body = metadata.Model;
-      }
+        if (metadata.Make && metadata.Model) {
+          const make = metadata.Make.toString().replace(/Corporation/i, '').trim();
+          const model = metadata.Model.toString().startsWith(make) ? metadata.Model : `${make} ${metadata.Model}`;
+          exifObj.body = model;
+        } else if (metadata.Model) {
+          exifObj.body = metadata.Model;
+        } else {
+          exifObj.body = "Unknown Camera";
+        }
 
-      if (metadata.LensModel) {
-        exifObj.lens = metadata.LensModel;
-      } else if (metadata.Lens) {
-        exifObj.lens = metadata.Lens;
-      }
+        if (metadata.LensModel) {
+          exifObj.lens = metadata.LensModel;
+        } else if (metadata.Lens) {
+          exifObj.lens = metadata.Lens;
+        }
 
-      if (metadata.FocalLength) exifObj.focalLength = `${metadata.FocalLength}mm`;
-      if (metadata.FNumber) exifObj.aperture = `f/${metadata.FNumber}`;
-      if (metadata.ISO) exifObj.iso = `ISO ${metadata.ISO}`;
-      if (metadata.ExposureTime) {
-        const speed = metadata.ExposureTime < 1 ? `1/${Math.round(1/metadata.ExposureTime)}s` : `${metadata.ExposureTime}s`;
-        exifObj.shutter = speed;
+        if (metadata.FocalLength) exifObj.focalLength = `${metadata.FocalLength}mm`;
+        if (metadata.FNumber) exifObj.aperture = `f/${metadata.FNumber}`;
+        if (metadata.ISO) exifObj.iso = `ISO ${metadata.ISO}`;
+        if (metadata.ExposureTime) {
+          const speed = metadata.ExposureTime < 1 ? `1/${Math.round(1/metadata.ExposureTime)}s` : `${metadata.ExposureTime}s`;
+          exifObj.shutter = speed;
+        }
       }
+    } catch (err) {
+      console.warn(`   ⚠️ Impossible d'analyser l'EXIF pour ${fileId}`);
     }
     
     return { 
@@ -103,7 +181,7 @@ async function extractMetadataFromRemoteImage(fileId: string): Promise<{tags: st
       palette: hexPalette
     };
   } catch (e) {
-    console.log("   ⚠️ Impossible d'extraire les métadonnées de cette image.");
+    console.error(`   ❌ Erreur critique lors de l'extraction des métadonnées (${fileId}):`, e);
     return { tags: [], exif: {}, palette: [] };
   }
 }
@@ -125,7 +203,7 @@ async function getPublicUrl(fileId: string): Promise<string> {
     });
     return newShare.data.share_url;
   } catch (e) {
-    console.log(`   ⚠️ Impossible d'obtenir l'URL de partage pour ${fileId}.`);
+    console.warn(`   ⚠️ Impossible d'obtenir l'URL de partage pour ${fileId}.`);
     return '';
   }
 }
@@ -222,21 +300,32 @@ function calculateMeanPalette(palettes: string[][]): string[] {
 }
 
 async function sync() {
-  console.log('🔄 Démarrage de la synchronisation (Mode kDrive Immersif)...');
+  const isDryRun = process.argv.includes('--dry-run');
+  console.log(`🔄 Démarrage de la synchronisation (Mode kDrive Immersif)${isDryRun ? ' [DRY RUN]' : ''}...`);
 
   if (!KDRIVE_API_TOKEN || !KDRIVE_DRIVE_ID || !KDRIVE_FOLDER_ID) {
     console.error('⚠️ Variables d\'environnement manquantes. Vérifiez votre .env');
     return;
   }
 
+  const stats = {
+    rollsProcessed: 0,
+    photosSynced: 0,
+    errors: 0,
+    skipped: 0
+  };
+
   try {
-    await fs.mkdir(LOCAL_CONTENT_DIR, { recursive: true });
+    if (!isDryRun) {
+      await fs.mkdir(LOCAL_CONTENT_DIR, { recursive: true });
+    }
 
     const data = await fetchKDriveAPI(`/files/${KDRIVE_FOLDER_ID}/files`);
     const folders = data.data.filter((file: any) => file.type === 'dir');
     console.log(`📁 Trouvé ${folders.length} dossiers (Rolls) sur kDrive.`);
 
     const searchIndex: any[] = [];
+    const rollsToWrite: Array<{path: string, content: string, slug: string}> = [];
 
     for (const folder of folders) {
       const rollTitle = folder.name;
@@ -247,6 +336,16 @@ async function sync() {
 
       const folderData = await fetchKDriveAPI(`/files/${folder.id}/files`);
       
+      const photos = folderData.data.filter((f: any) => 
+        f.type === 'file' && (f.name.toLowerCase().endsWith('.jpg') || f.name.toLowerCase().endsWith('.jpeg'))
+      );
+
+      if (photos.length === 0) {
+        console.warn(`   ⚠️ Aucun fichier image trouvé dans "${rollTitle}". On passe.`);
+        stats.skipped++;
+        continue;
+      }
+
       // Recherche de poésie (.md) directement dans le dossier du Roll
       const poetryFile = folderData.data.find((f: any) => f.type === 'file' && f.name.toLowerCase().endsWith('.md'));
       let poetryData: { globalPoem?: string, photos: Record<string, string> } = { globalPoem: undefined, photos: {} };
@@ -254,11 +353,13 @@ async function sync() {
       if (poetryFile) {
         console.log(`   📖 Poésie trouvée: ${poetryFile.name}`);
         const contentStr = await fetchKDriveFileContent(poetryFile.id);
-        const { data: frontmatter, content } = matter(contentStr);
-        poetryData = {
-          globalPoem: content.trim() || undefined,
-          photos: frontmatter.photos || {}
-        };
+        if (contentStr) {
+          const { data: frontmatter, content } = matter(contentStr);
+          poetryData = {
+            globalPoem: content.trim() || undefined,
+            photos: frontmatter.photos || {}
+          };
+        }
       }
 
       const audioFile = folderData.data.find((f: any) => f.type === 'file' && f.name.toLowerCase().endsWith('.mp3'));
@@ -268,33 +369,47 @@ async function sync() {
         audioUrl = await getPublicUrl(audioFile.id);
       }
 
-      const photos = folderData.data.filter((f: any) => 
-        f.type === 'file' && (f.name.toLowerCase().endsWith('.jpg') || f.name.toLowerCase().endsWith('.jpeg'))
-      );
-
       let rollTags = new Set<string>();
       let allPalettes: string[][] = [];
 
-      const imagesData = await Promise.all(photos.map(async (photo: any) => {
-        console.log(`   🔗 Traitement de: ${photo.name}...`);
-        
-        const publicUrl = await getPublicUrl(photo.id);
-        const { tags, exif, palette } = await extractMetadataFromRemoteImage(photo.id);
-        
-        tags.forEach(t => rollTags.add(t));
-        
-        if (palette.length > 0) {
-          allPalettes.push(palette);
-        }
+      const imagesData = (await Promise.all(photos.map(async (photo: any) => {
+        try {
+          console.log(`   🔗 Traitement de: ${photo.name}...`);
+          
+          const publicUrl = await getPublicUrl(photo.id);
+          if (!publicUrl) {
+            console.warn(`   ⚠️ Pas d'URL publique pour ${photo.name}. Image ignorée.`);
+            return null;
+          }
 
-        return {
-          url: publicUrl,
-          exif: exif,
-          poem: poetryData.photos[photo.name] || undefined,
-          palette: palette,
-          dominantColor: palette.length > 0 ? palette[0] : undefined
-        };
-      }));
+          const { tags, exif, palette } = await extractMetadataFromRemoteImage(photo.id);
+          
+          tags.forEach(t => rollTags.add(t));
+          
+          if (palette.length > 0) {
+            allPalettes.push(palette);
+          }
+
+          stats.photosSynced++;
+          return {
+            url: publicUrl,
+            exif: exif,
+            poem: poetryData.photos[photo.name] || undefined,
+            palette: palette,
+            dominantColor: palette.length > 0 ? palette[0] : undefined
+          };
+        } catch (err) {
+          console.error(`   ❌ Erreur lors du traitement de la photo ${photo.name}:`, err);
+          stats.errors++;
+          return null;
+        }
+      }))).filter(img => img !== null);
+
+      if (imagesData.length === 0) {
+        console.warn(`   ⚠️ Aucune donnée d'image valide pour "${rollTitle}". On ne génère pas le fichier.`);
+        stats.skipped++;
+        continue;
+      }
 
       const tagsArray = Array.from(rollTags);
       const rollPalette = calculateMeanPalette(allPalettes);
@@ -323,19 +438,31 @@ ${rollPoemAttr}${rollPaletteAttr}${rollDominantColorAttr}${rollAudioAttr}images:
 ---
 `;
       const mdPath = path.join(LOCAL_CONTENT_DIR, `${rollSlug}.md`);
-      await fs.writeFile(mdPath, mdContent);
-      console.log(`   ✅ Fichier généré: ${rollSlug}.md`);
+      rollsToWrite.push({ path: mdPath, content: mdContent, slug: rollSlug });
+      stats.rollsProcessed++;
     }
 
-    // Sauvegarde de l'index de recherche global
-    const indexPath = path.join(process.cwd(), 'public', 'search-index.json');
-    await fs.writeFile(indexPath, JSON.stringify(searchIndex, null, 2));
-    console.log(`\n🔍 Index de recherche généré: ${indexPath}`);
+    if (!isDryRun) {
+      console.log('\n💾 Écriture des fichiers sur le disque...');
+      for (const roll of rollsToWrite) {
+        await fs.writeFile(roll.path, roll.content);
+        console.log(`   ✅ Fichier généré: ${roll.slug}.md`);
+      }
+
+      // Sauvegarde de l'index de recherche global
+      const indexPath = path.join(process.cwd(), 'public', 'search-index.json');
+      await fs.writeFile(indexPath, JSON.stringify(searchIndex, null, 2));
+      console.log(`\n🔍 Index de recherche généré: ${indexPath}`);
+    } else {
+      console.log('\n🧪 [DRY RUN] Aucun fichier n\'a été écrit.');
+    }
 
     console.log('\n🎉 Synchronisation terminée !');
+    console.log(`📊 Résumé: ${stats.rollsProcessed} Rolls, ${stats.photosSynced} Photos, ${stats.errors} Erreurs, ${stats.skipped} Ignorés.`);
 
   } catch (error) {
     console.error('\n❌ Erreur critique lors de la synchronisation:', error);
+    process.exit(1);
   }
 }
 

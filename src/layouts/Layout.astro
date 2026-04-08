@@ -333,7 +333,7 @@ const { title } = Astro.props;
 		<slot />
 
     <script>
-      import { setAuraLock } from '../scripts/utils/colors';
+      import { setAuraLock, resetColorCache } from '../scripts/utils/colors';
 
       // Gestion du verrouillage de l'aura pendant la navigation (Color-Lock)
       // On verrouille dès que la préparation commence pour éviter les resets intempestifs
@@ -341,9 +341,11 @@ const { title } = Astro.props;
         setAuraLock(true);
       });
 
-      // Reset du scroll en haut de page à chaque navigation
+      // Reset du scroll en haut de page, déverrouillage et reset du cache à chaque navigation
       document.addEventListener('astro:after-swap', () => {
         window.scrollTo(0, 0);
+        resetColorCache();
+        setAuraLock(false);
       });
 
       // Initialisation des composants globaux
@@ -355,7 +357,7 @@ const { title } = Astro.props;
         
         if (!lightbox || !img) return;
 
-        // Reset state
+        // Reset state (sécurité supplémentaire)
         setAuraLock(false);
 
         const close = () => {
