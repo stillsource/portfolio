@@ -5,6 +5,7 @@ import exifr from 'exifr';
 import slugify from 'slugify';
 import matter from 'gray-matter';
 import { Vibrant } from 'node-vibrant/node';
+import type { ExifData, ImageItemData, SearchIndexItem } from '../types/content';
 
 // ----------------------------------------------------------------------
 // SCRIPT DE SYNCHRONISATION KDRIVE -> ASTRO (URL PUBLIQUES)
@@ -30,25 +31,18 @@ interface KDriveResponse {
   data: KDriveFile[];
 }
 
-interface ImageMetadata {
-  tags: string[];
-  exif: {
-    shutter?: string;
-    aperture?: string;
-    iso?: string;
-    body?: string;
-    lens?: string;
-    focalLength?: string;
-  };
-  palette: string[];
+interface KDriveShare {
+  share_url: string;
 }
 
-interface ImageData {
-  url: string;
-  exif: ImageMetadata['exif'];
-  poem?: string;
+interface KDriveShareResponse {
+  data: KDriveShare[];
+}
+
+interface ImageMetadata {
+  tags: string[];
+  exif: ExifData;
   palette: string[];
-  dominantColor?: string;
 }
 
 interface RollToWrite {
@@ -70,17 +64,18 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
       return fetchWithRetry(url, options, retries - 1);
     }
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
     clearTimeout(id);
-    if (retries > 0 && (error.name === 'AbortError' || error.name === 'FetchError' || error.code === 'ECONNRESET')) {
-      console.warn(`   ⚠️ Erreur réseau (${error.message}). Nouvelle tentative (${MAX_RETRIES - retries + 1}/${MAX_RETRIES})...`);
+    const err = error as { name?: string; message?: string; code?: string };
+    if (retries > 0 && (err.name === 'AbortError' || err.name === 'FetchError' || err.code === 'ECONNRESET')) {
+      console.warn(`   ⚠️ Erreur réseau (${err.message}). Nouvelle tentative (${MAX_RETRIES - retries + 1}/${MAX_RETRIES})...`);
       return fetchWithRetry(url, options, retries - 1);
     }
     throw error;
   }
 }
 
-async function fetchKDriveAPI(endpoint: string, options: RequestInit = {}): Promise<KDriveResponse> {
+async function fetchKDriveAPI<T = KDriveResponse>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE}/${KDRIVE_DRIVE_ID}${endpoint}`;
   const response = await fetchWithRetry(url, {
     ...options,
@@ -94,7 +89,7 @@ async function fetchKDriveAPI(endpoint: string, options: RequestInit = {}): Prom
     const errorBody = await response.text();
     throw new Error(`Erreur API kDrive: ${response.status} ${response.statusText} - ${errorBody}`);
   }
-  return response.json();
+  return response.json() as Promise<T>;
 }
 
 async function fetchKDriveFileContent(fileId: string): Promise<string | null> {
@@ -136,7 +131,7 @@ async function extractMetadataFromRemoteImage(fileId: string): Promise<ImageMeta
     }
     
     let tags: string[] = [];
-    let exifObj: ImageMetadata['exif'] = {};
+    let exifObj: ExifData = {};
 
     try {
       const metadata = await exifr.parse(buffer, { iptc: true, xmp: true, tiff: true, exif: true });
@@ -188,12 +183,12 @@ async function extractMetadataFromRemoteImage(fileId: string): Promise<ImageMeta
 
 async function getPublicUrl(fileId: string): Promise<string> {
   try {
-    const shares = await fetchKDriveAPI(`/files/${fileId}/shares`);
+    const shares = await fetchKDriveAPI<KDriveShareResponse>(`/files/${fileId}/shares`);
     if (shares.data && shares.data.length > 0) {
       return shares.data[0].share_url;
     }
 
-    const newShare = await fetchKDriveAPI(`/files/${fileId}/shares`, {
+    const newShare = await fetchKDriveAPI<{ data: KDriveShare }>(`/files/${fileId}/shares`, {
       method: 'POST',
       body: JSON.stringify({
         type: 'public',
@@ -242,7 +237,7 @@ function labToRgb(l: number, a: number, b: number) {
   
   x = (Math.pow(x, 3) > 0.008856) ? Math.pow(x, 3) : (x - 16 / 116) / 7.787;
   y = (Math.pow(y, 3) > 0.008856) ? Math.pow(y, 3) : (y - 16 / 116) / 7.787;
-  z = (Math.pow(z, 3) > 0.008856) ? Math.pow(z, 3) : (z - 16 / 116) / 7.787;
+  z = (Math.pow(z, 3) > 0.008856) ? Math.pow(z, 3) : (y - 16 / 116) / 7.787;
   
   x *= 95.047; y *= 100.000; z *= 108.883;
   
@@ -321,10 +316,10 @@ async function sync() {
     }
 
     const data = await fetchKDriveAPI(`/files/${KDRIVE_FOLDER_ID}/files`);
-    const folders = data.data.filter((file: any) => file.type === 'dir');
+    const folders = data.data.filter(file => file.type === 'dir');
     console.log(`📁 Trouvé ${folders.length} dossiers (Rolls) sur kDrive.`);
 
-    const searchIndex: any[] = [];
+    const searchIndex: SearchIndexItem[] = [];
     const rollsToWrite: Array<{path: string, content: string, slug: string}> = [];
 
     for (const folder of folders) {
@@ -336,7 +331,7 @@ async function sync() {
 
       const folderData = await fetchKDriveAPI(`/files/${folder.id}/files`);
       
-      const photos = folderData.data.filter((f: any) => 
+      const photos = folderData.data.filter(f => 
         f.type === 'file' && (f.name.toLowerCase().endsWith('.jpg') || f.name.toLowerCase().endsWith('.jpeg'))
       );
 
@@ -347,7 +342,7 @@ async function sync() {
       }
 
       // Recherche de poésie (.md) directement dans le dossier du Roll
-      const poetryFile = folderData.data.find((f: any) => f.type === 'file' && f.name.toLowerCase().endsWith('.md'));
+      const poetryFile = folderData.data.find(f => f.type === 'file' && f.name.toLowerCase().endsWith('.md'));
       let poetryData: { globalPoem?: string, photos: Record<string, string> } = { globalPoem: undefined, photos: {} };
       
       if (poetryFile) {
@@ -362,7 +357,7 @@ async function sync() {
         }
       }
 
-      const audioFile = folderData.data.find((f: any) => f.type === 'file' && f.name.toLowerCase().endsWith('.mp3'));
+      const audioFile = folderData.data.find(f => f.type === 'file' && f.name.toLowerCase().endsWith('.mp3'));
       let audioUrl = undefined;
       if (audioFile) {
         console.log(`   🎵 Audio trouvé: ${audioFile.name}`);
@@ -372,7 +367,7 @@ async function sync() {
       let rollTags = new Set<string>();
       let allPalettes: string[][] = [];
 
-      const imagesData = (await Promise.all(photos.map(async (photo: any) => {
+      const imagesData = (await Promise.all(photos.map(async (photo) => {
         try {
           console.log(`   🔗 Traitement de: ${photo.name}...`);
           
@@ -391,19 +386,20 @@ async function sync() {
           }
 
           stats.photosSynced++;
-          return {
+          const imgItem: ImageItemData = {
             url: publicUrl,
             exif: exif,
             poem: poetryData.photos[photo.name] || undefined,
             palette: palette,
             dominantColor: palette.length > 0 ? palette[0] : undefined
           };
+          return imgItem;
         } catch (err) {
           console.error(`   ❌ Erreur lors du traitement de la photo ${photo.name}:`, err);
           stats.errors++;
           return null;
         }
-      }))).filter(img => img !== null);
+      }))).filter((img): img is ImageItemData => img !== null);
 
       if (imagesData.length === 0) {
         console.warn(`   ⚠️ Aucune donnée d'image valide pour "${rollTitle}". On ne génère pas le fichier.`);

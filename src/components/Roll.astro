@@ -1,25 +1,13 @@
 ---
 // Roll.astro
+import type { RollData, ExifData } from '../types/content';
+
 export interface Props {
   title: string;
   poem?: string;
   dominantColor?: string;
   palette?: string[];
-  images: {
-    url: string;
-    exif?: {
-      shutter?: string;
-      aperture?: string;
-      iso?: string;
-      body?: string;
-      lens?: string;
-      focalLength?: string;
-    };
-    metadata?: string;
-    poem?: string;
-    palette?: string[];
-    dominantColor?: string;
-  }[]; 
+  images: RollData['images']; 
 }
 const { title, poem, dominantColor = '#050505', palette, images } = Astro.props;
 
@@ -28,7 +16,7 @@ const effectivePalette = palette && palette.length > 0
   ? palette 
   : (images[0]?.palette && images[0].palette.length > 0 ? images[0].palette : [dominantColor]);
 
-const formatExif = (exif?: any, metadata?: string) => {
+const formatExif = (exif?: ExifData, metadata?: string) => {
   if (metadata) return metadata;
   if (!exif) return '';
   const parts = [];

@@ -1,7 +1,3 @@
----
-// Search.astro
----
-
 <div class="search-wrapper">
   <button id="search-toggle" class="search-btn" aria-label="Rechercher">
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -185,8 +181,9 @@
 
 <script>
   import { applyThemeColors } from '../scripts/utils/colors';
+  import type { SearchIndexItem } from '../types/content';
 
-  let searchIndex: any[] = [];
+  let searchIndex: SearchIndexItem[] = [];
   let isIndexLoaded = false;
 
   async function loadSearchIndex() {
@@ -221,7 +218,7 @@
       }
     };
 
-    const renderResults = (results: any[]) => {
+    const renderResults = (results: SearchIndexItem[]) => {
       if (!els.results) return;
       
       if (results.length === 0) {
@@ -247,18 +244,19 @@
     };
 
     // Navbar est transition:persist — on n'attache les listeners qu'une seule fois
-    if ((els.results as any).__searchBound) return;
-    (els.results as any).__searchBound = true;
+    const resultsEl = els.results as HTMLElement & { __searchBound?: boolean };
+    if (resultsEl.__searchBound) return;
+    resultsEl.__searchBound = true;
 
     // Délégation d'événements pour l'aura sur les résultats de recherche
-    els.results.addEventListener('mouseenter', (e) => {
+    els.results!.addEventListener('mouseenter', (e) => {
       const trigger = (e.target as HTMLElement).closest('.result-trigger') as HTMLElement;
       if (trigger) {
         applyThemeColors(JSON.parse(trigger.dataset.palette || '[]'), true);
       }
     }, true);
 
-    els.results.addEventListener('mouseleave', (e) => {
+    els.results!.addEventListener('mouseleave', (e) => {
       const trigger = (e.target as HTMLElement).closest('.result-trigger') as HTMLElement;
       if (trigger) {
         applyThemeColors([], false);
