@@ -67,9 +67,17 @@ Voici ce qu'il se passe automatiquement :
 3. Il lit vos poèmes locaux (`src/data/poetry/`).
 4. Il génère les données pour Astro et Astro compile un site HTML/CSS ultra-rapide.
 
-## 🎨 Fonctionnalités de Design Incluses
-- **Splash Screen :** Animation d'obturation photographique à la première visite.
-- **Lavis Subtil :** Le fond du site s'adapte à la couleur de la photo avec une teinte douce et désaturée.
-- **Glassmorphism :** Menu flottant et overlays de métadonnées en verre dépoli.
-- **View Transitions :** Navigation sans rechargement (fluide comme une App).
-- **Grain global :** Texture SVG imitant le grain de pellicule par-dessus l'écran.
+## 🎨 Fonctionnalités de Design & Immersion
+- **Système Aura 2.0 :** Un moteur d'ambiance dynamique qui extrait les couleurs des photos pour créer un éclairage immersif fluide et persistant.
+- **Performance GPU :** Animations optimisées via `translate3d` et `will-change` pour un rendu à 60fps constant.
+- **Transition:Persist :** L'interface (Aura, Navigation, Audio) persiste entre les pages pour une expérience sans coupure.
+- **Splash Screen :** Animation cinématique d'introduction à la première visite.
+- **Glassmorphism :** Menu flottant et overlays de métadonnées en verre dépoli (20px blur).
+- **View Transitions :** Navigation fluide via Astro ClientRouter avec Color-Lock matériel.
+- **Grain global :** Texture SVG dynamique imitant le grain de pellicule cinématographique.
+
+## 🛠️ Optimisations Techniques (Pickle Rick Edition)
+- **Zéro Fuite Mémoire :** Délégation d'événements et nettoyage automatique des listeners sur tout le projet.
+- **Cache de Palette :** Évite les manipulations DOM redondantes pour un gain de CPU immédiat.
+- **Race Condition Zero :** Synchronisation robuste des timers de navigation et des transitions d'état.
+

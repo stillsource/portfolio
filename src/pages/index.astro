@@ -258,18 +258,23 @@ const groupedTags = allTags.reduce((acc, tag) => {
     import { applyThemeColors } from '../scripts/utils/colors';
 
     function setupIndexColorHover() {
-      const triggers = document.querySelectorAll('.color-hover-trigger');
-      
-      triggers.forEach(trigger => {
-        trigger.addEventListener('mouseenter', () => {
-          const paletteStr = (trigger as HTMLElement).dataset.palette;
-          if (paletteStr) applyThemeColors(JSON.parse(paletteStr), true);
-        });
+      const list = document.getElementById('roll-list');
+      if (!list) return;
 
-        trigger.addEventListener('mouseleave', () => {
+      list.addEventListener('mouseenter', (e) => {
+        const trigger = (e.target as HTMLElement).closest('.color-hover-trigger') as HTMLElement;
+        if (trigger) {
+          const paletteStr = trigger.dataset.palette;
+          if (paletteStr) applyThemeColors(JSON.parse(paletteStr), true);
+        }
+      }, true);
+
+      list.addEventListener('mouseleave', (e) => {
+        const trigger = (e.target as HTMLElement).closest('.color-hover-trigger') as HTMLElement;
+        if (trigger) {
           applyThemeColors([], false);
-        });
-      });
+        }
+      }, true);
     }
 
     function setupIndexFilters() {
@@ -314,7 +319,11 @@ const groupedTags = allTags.reduce((acc, tag) => {
       if (sessionStorage.getItem('splashSeen')) {
         revealAll();
       } else {
-        window.addEventListener('splashFinished', revealAll);
+        // On n'attache qu'une fois au window
+        if (!(window as any).__reveal_initialized) {
+          window.addEventListener('splashFinished', revealAll);
+          (window as any).__reveal_initialized = true;
+        }
       }
     }
 

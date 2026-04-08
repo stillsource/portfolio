@@ -246,7 +246,15 @@ const { title, poem, dominantColor = '#050505', images } = Astro.props;
 <script>
   import { applyThemeColors } from '../scripts/utils/colors';
 
+  let currentCleanup: (() => void) | null = null;
+
   function initRoll() {
+    // Nettoyage de l'instance précédente si elle existe
+    if (currentCleanup) {
+      currentCleanup();
+      currentCleanup = null;
+    }
+
     const colorTriggers = document.querySelectorAll('.color-trigger');
     const floatingThoughts = document.querySelectorAll('.floating-thought');
     
@@ -276,7 +284,7 @@ const { title, poem, dominantColor = '#050505', images } = Astro.props;
           const yOffset = distanceFromCenter * -80; 
           const opacity = 1 - Math.abs(distanceFromCenter) * 1.8;
           
-          (thought as HTMLElement).style.transform = `translateY(${yOffset}px)`;
+          (thought as HTMLElement).style.transform = `translate3d(0, ${yOffset}px, 0)`;
           (thought as HTMLElement).style.opacity = Math.max(0, Math.min(0.6, opacity)).toString();
         }
       });
@@ -297,8 +305,9 @@ const { title, poem, dominantColor = '#050505', images } = Astro.props;
       });
     });
 
-    return () => {
+    currentCleanup = () => {
       window.removeEventListener('scroll', handleScroll);
+      colorObserver.disconnect();
     };
   }
 

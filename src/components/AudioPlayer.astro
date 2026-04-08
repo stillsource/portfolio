@@ -69,14 +69,20 @@ const { audioUrl = '/ambiance-rue.mp3' } = Astro.props;
 </style>
 
 <script>
+  let currentAudioCleanup: (() => void) | null = null;
+
   function setupAudio() {
+    if (currentAudioCleanup) {
+      currentAudioCleanup();
+      currentAudioCleanup = null;
+    }
+
     const btn = document.getElementById('audio-toggle');
     const audio = document.getElementById('bg-audio') as HTMLAudioElement;
     const container = document.querySelector('.audio-controls') as HTMLElement;
 
     if (!btn || !audio || !container) return;
 
-    // Mise à jour de la source si elle a changé (contextuelle)
     const newSrc = container.dataset.currentSrc;
     if (newSrc && !audio.src.includes(newSrc)) {
       const wasPlaying = !audio.paused;
@@ -90,7 +96,7 @@ const { audioUrl = '/ambiance-rue.mp3' } = Astro.props;
       btn.classList.add('is-playing');
     }
 
-    btn.addEventListener('click', () => {
+    const togglePlay = () => {
       if (audio.paused) {
         audio.volume = 0.3; 
         audio.play().then(() => {
@@ -100,7 +106,13 @@ const { audioUrl = '/ambiance-rue.mp3' } = Astro.props;
         audio.pause();
         btn.classList.remove('is-playing');
       }
-    });
+    };
+
+    btn.addEventListener('click', togglePlay);
+
+    currentAudioCleanup = () => {
+      btn.removeEventListener('click', togglePlay);
+    };
   }
 
   document.addEventListener('astro:page-load', setupAudio);

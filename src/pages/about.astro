@@ -219,6 +219,8 @@ import Navbar from '../components/Navbar.astro';
   </style>
 
   <script>
+    import { applyThemeColors } from '../scripts/utils/colors';
+
     function setupAboutReveal() {
       const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
@@ -230,12 +232,8 @@ import Navbar from '../components/Navbar.astro';
 
       document.querySelectorAll('.reveal-on-scroll').forEach(el => observer.observe(el));
       
-      // On force une couleur d'aura calme pour la page À Propos
-      document.documentElement.style.setProperty('--p1', '#1a1a1a');
-      document.documentElement.style.setProperty('--p2', '#0a0a0a');
-      document.documentElement.style.setProperty('--p3', '#151515');
-      document.documentElement.style.setProperty('--p4', '#050505');
-      document.documentElement.style.setProperty('--p5', '#101010');
+      // On force une couleur d'aura calme pour la page À Propos via l'utilitaire central
+      applyThemeColors(['#1a1a1a', '#0a0a0a', '#151515', '#050505', '#101010'], true);
     }
 
     document.addEventListener('astro:page-load', setupAboutReveal);

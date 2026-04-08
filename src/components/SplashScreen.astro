@@ -67,11 +67,13 @@
 </style>
 
 <script>
+  let splashTimer: ReturnType<typeof setTimeout> | null = null;
+  let hideTimer: ReturnType<typeof setTimeout> | null = null;
+
   function initSplash() {
     const splash = document.getElementById('splash-screen');
     if (!splash) return;
     
-    // Si déjà vu, on cache IMMÉDIATEMENT sans animation
     if (sessionStorage.getItem('splashSeen')) {
       splash.style.display = 'none';
       splash.classList.add('is-hidden');
@@ -79,19 +81,25 @@
       return;
     }
 
-    // Premier passage
-    setTimeout(() => {
+    if (splashTimer) clearTimeout(splashTimer);
+    if (hideTimer) clearTimeout(hideTimer);
+
+    splashTimer = setTimeout(() => {
       splash.classList.add('is-hidden');
       sessionStorage.setItem('splashSeen', 'true');
       window.dispatchEvent(new Event('splashFinished'));
       
-      // On le retire du DOM après l'animation pour être sûr
-      setTimeout(() => {
+      hideTimer = setTimeout(() => {
         splash.style.display = 'none';
       }, 800);
     }, 2200);
   }
 
-  // On lance au chargement initial et à chaque navigation
+  // Nettoyage si on navigue PENDANT le splash (peu probable mais possible)
+  document.addEventListener('astro:before-preparation', () => {
+    if (splashTimer) clearTimeout(splashTimer);
+    if (hideTimer) clearTimeout(hideTimer);
+  });
+
   document.addEventListener('astro:page-load', initSplash);
 </script>

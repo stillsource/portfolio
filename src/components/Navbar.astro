@@ -11,7 +11,7 @@ interface Props {
 const { mode = 'index', audioUrl } = Astro.props;
 ---
 
-<div id="main-nav" class={`nav-container ${mode !== 'index' ? 'is-visible' : ''}`}>
+<div id="main-nav" class={`nav-container ${mode !== 'index' ? 'is-visible' : ''}`} transition:persist="main-nav">
   <nav class="tag-menu">
     {mode !== 'about' && (
       <>

@@ -123,6 +123,14 @@ const nextTitle = nextRoll ? nextRoll.data.title : "À Propos de l'Errance";
     const observerOptions = { root: null, rootMargin: '0px', threshold: 0.15 };
     let navigationTimer: ReturnType<typeof setTimeout> | null = null;
 
+    // On s'assure que le timer est nettoyé si l'utilisateur navigue manuellement
+    document.addEventListener('astro:before-preparation', () => {
+      if (navigationTimer) {
+        clearTimeout(navigationTimer);
+        navigationTimer = null;
+      }
+    });
+
     const observer = new IntersectionObserver((entries, observer) => {
       entries.forEach(entry => {
         const target = entry.target as HTMLElement;
@@ -130,24 +138,20 @@ const nextTitle = nextRoll ? nextRoll.data.title : "À Propos de l'Errance";
         if (entry.isIntersecting) {
           target.classList.add('is-visible');
           
-          // Auto-navigation logic
           if (target.id === 'next-roll-trigger') {
             const nextUrl = target.dataset.nextUrl;
             if (nextUrl) {
               target.classList.add('is-loading');
               
-              // Déclencher le fondu cinématique plus tard (à 1.5s sur les 2.5s totaux)
               setTimeout(() => {
                 if (target.classList.contains('is-visible')) {
                   document.body.classList.add('is-transitioning');
                 }
               }, 1500);
               
-              // Annuler tout timer existant par sécurité
               if (navigationTimer) clearTimeout(navigationTimer);
               
               navigationTimer = setTimeout(() => {
-                // On vérifie une dernière fois si l'élément est toujours visible
                 if (target.classList.contains('is-visible')) {
                   navigate(nextUrl);
                 }
@@ -155,12 +159,10 @@ const nextTitle = nextRoll ? nextRoll.data.title : "À Propos de l'Errance";
             }
           }
           
-          // Pour les éléments classiques, on arrête d'observer une fois visible
           if (target.id !== 'next-roll-trigger') {
             observer.unobserve(target);
           }
         } else {
-          // L'utilisateur a scrollé en arrière (l'élément n'est plus visible)
           if (target.id === 'next-roll-trigger') {
             target.classList.remove('is-visible', 'is-loading');
             document.body.classList.remove('is-transitioning');

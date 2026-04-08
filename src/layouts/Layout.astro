@@ -81,26 +81,33 @@ const { title } = Astro.props;
         position: absolute;
         width: 80vmax;
         height: 80vmax;
-        filter: blur(100px);
+        filter: blur(120px);
         border-radius: 50%;
         opacity: var(--aura-opacity);
         mix-blend-mode: screen;
-        transition: background-color 2.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 2s ease;
+        transition: 
+          background-color 3s cubic-bezier(0.4, 0, 0.2, 1), 
+          opacity 3s ease;
         will-change: transform, background-color, opacity;
       }
 
-      /* Positions et animations de dérive pour chaque blob */
-      .b1 { top: -20%; left: -20%; background-color: var(--p1); animation: drift1 40s infinite alternate; }
-      .b2 { top: -20%; right: -20%; background-color: var(--p2); animation: drift2 35s infinite alternate; }
-      .b3 { bottom: -20%; right: -20%; background-color: var(--p3); animation: drift3 45s infinite alternate; }
-      .b4 { bottom: -20%; left: -20%; background-color: var(--p4); animation: drift4 38s infinite alternate; }
-      .b5 { top: 20%; left: 20%; width: 60vmax; height: 60vmax; background-color: var(--p5); animation: drift5 50s infinite alternate; }
+      /* On débraye les transitions pendant le Color-Lock pour éviter tout flicker résiduel */
+      :root[data-aura-locked] .aura-blob {
+        transition: none !important;
+      }
 
-      @keyframes drift1 { 0% { transform: translate(0,0); } 100% { transform: translate(10%, 15%); } }
-      @keyframes drift2 { 0% { transform: translate(0,0); } 100% { transform: translate(-15%, 10%); } }
-      @keyframes drift3 { 0% { transform: translate(0,0); } 100% { transform: translate(-10%, -15%); } }
-      @keyframes drift4 { 0% { transform: translate(0,0); } 100% { transform: translate(15%, -10%); } }
-      @keyframes drift5 { 0% { transform: translate(0,0); } 100% { transform: translate(-5%, 5%); } }
+      /* Positions et animations de dérive pour chaque blob - Optimisées pour GPU */
+      .b1 { top: -20%; left: -20%; background-color: var(--p1); animation: drift1 45s infinite alternate ease-in-out; }
+      .b2 { top: -25%; right: -25%; background-color: var(--p2); animation: drift2 38s infinite alternate ease-in-out; }
+      .b3 { bottom: -20%; right: -20%; background-color: var(--p3); animation: drift3 50s infinite alternate ease-in-out; }
+      .b4 { bottom: -25%; left: -25%; background-color: var(--p4); animation: drift4 42s infinite alternate ease-in-out; }
+      .b5 { top: 25%; left: 25%; width: 60vmax; height: 60vmax; background-color: var(--p5); animation: drift5 55s infinite alternate ease-in-out; }
+
+      @keyframes drift1 { 0% { transform: translate3d(0,0,0) scale(1) rotate(0deg); } 100% { transform: translate3d(10%, 15%, 0) scale(1.1) rotate(15deg); } }
+      @keyframes drift2 { 0% { transform: translate3d(0,0,0) scale(1.1) rotate(0deg); } 100% { transform: translate3d(-15%, 10%, 0) scale(1) rotate(-12deg); } }
+      @keyframes drift3 { 0% { transform: translate3d(0,0,0) scale(1) rotate(0deg); } 100% { transform: translate3d(-12%, -15%, 0) scale(1.1) rotate(10deg); } }
+      @keyframes drift4 { 0% { transform: translate3d(0,0,0) scale(1.1) rotate(0deg); } 100% { transform: translate3d(15%, -10%, 0) scale(1) rotate(-8deg); } }
+      @keyframes drift5 { 0% { transform: translate3d(0,0,0) scale(1) rotate(0deg); } 100% { transform: translate3d(-8%, 8%, 0) scale(1.15) rotate(20deg); } }
 
       /* --- ACCESSIBILITÉ : REDUCED MOTION --- */
       @media (prefers-reduced-motion: reduce) {
@@ -290,7 +297,7 @@ const { title } = Astro.props;
     </style>
 	</head>
 	<body>
-    <div class="bg-aura">
+    <div class="bg-aura" transition:persist="aura-container">
       <div class="aura-blob b1"></div>
       <div class="aura-blob b2"></div>
       <div class="aura-blob b3"></div>
@@ -326,8 +333,16 @@ const { title } = Astro.props;
 		<slot />
 
     <script>
-      // Logique globale de la Lightbox
-      function setupLightbox() {
+      import { setAuraLock } from '../scripts/utils/colors';
+
+      // Gestion du verrouillage de l'aura pendant la navigation (Color-Lock)
+      // On verrouille dès que la préparation commence pour éviter les resets intempestifs
+      document.addEventListener('astro:before-preparation', () => {
+        setAuraLock(true);
+      });
+
+      // Initialisation des composants globaux
+      function initGlobalComponents() {
         const lightbox = document.getElementById('global-lightbox');
         const img = document.getElementById('lightbox-img') as HTMLImageElement;
         const poem = document.getElementById('lightbox-poem');
@@ -335,52 +350,71 @@ const { title } = Astro.props;
         
         if (!lightbox || !img) return;
 
+        // Reset state
+        setAuraLock(false);
+
         const close = () => {
           lightbox.classList.remove('is-open');
           document.body.classList.remove('lightbox-open');
           lightbox.setAttribute('aria-hidden', 'true');
         };
 
-        window.addEventListener('open-lightbox', (e: any) => {
-          const data = e.detail;
-          img.src = data.url;
-          if (poem) poem.textContent = data.poem;
-          if (exif) exif.textContent = data.exif;
-          
-          lightbox.classList.add('is-open');
-          document.body.classList.add('lightbox-open');
-          lightbox.setAttribute('aria-hidden', 'false');
+        // On n'attache les events window qu'une seule fois
+        if (!(window as any).__aura_initialized) {
+          window.addEventListener('open-lightbox', ((e: CustomEvent) => {
+            const data = e.detail;
+            const targetImg = document.getElementById('lightbox-img') as HTMLImageElement;
+            const targetPoem = document.getElementById('lightbox-poem');
+            const targetExif = document.getElementById('lightbox-exif');
+            const targetLightbox = document.getElementById('global-lightbox');
+            
+            if (!targetLightbox || !targetImg) return;
 
-          // Orientation
-          const temp = new Image();
-          temp.onload = () => {
-            lightbox.classList.remove('portrait', 'landscape');
-            lightbox.classList.add(temp.height > temp.width ? 'portrait' : 'landscape');
-          };
-          temp.src = data.url;
-        });
+            targetImg.src = data.url;
+            if (targetPoem) targetPoem.textContent = data.poem;
+            if (targetExif) targetExif.textContent = data.exif;
+            
+            targetLightbox.classList.add('is-open');
+            document.body.classList.add('lightbox-open');
+            targetLightbox.setAttribute('aria-hidden', 'false');
 
+            const temp = new Image();
+            temp.onload = () => {
+              targetLightbox.classList.remove('portrait', 'landscape');
+              targetLightbox.classList.add(temp.height > temp.width ? 'portrait' : 'landscape');
+            };
+            temp.src = data.url;
+          }) as EventListener);
+
+          window.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            if (key === 'h' || key === '.') {
+              document.body.classList.toggle('chambre-noire');
+            }
+            if (e.key === 'Escape') {
+              const targetLightbox = document.getElementById('global-lightbox');
+              if (targetLightbox?.classList.contains('is-open')) {
+                targetLightbox.classList.remove('is-open');
+                document.body.classList.remove('lightbox-open');
+                targetLightbox.setAttribute('aria-hidden', 'true');
+              }
+            }
+          });
+
+          (window as any).__aura_initialized = true;
+        }
+
+        // Event listeners pour la fermeture (attachés à l'élément local car non persisté)
         lightbox.addEventListener('click', (e) => {
-          // Si on clique directement sur le conteneur (fond) ou le backdrop
           if (e.target === lightbox || (e.target as HTMLElement).classList.contains('lightbox-backdrop')) {
             close();
           }
         });
         lightbox.querySelector('.lightbox-close')?.addEventListener('click', close);
-        window.addEventListener('keydown', (e) => e.key === 'Escape' && close());
       }
 
-      document.addEventListener('astro:page-load', setupLightbox);
-
-      // Logique Chambre Noire
-      function setupChambreNoire() {
-        window.addEventListener('keydown', (e) => {
-          if (e.key.toLowerCase() === 'h' || e.key === '.') {
-            document.body.classList.toggle('chambre-noire');
-          }
-        });
-      }
-      document.addEventListener('astro:page-load', setupChambreNoire);
+      // Déclenchement au chargement initial et après chaque navigation
+      document.addEventListener('astro:page-load', initGlobalComponents);
     </script>
 	</body>
 </html>

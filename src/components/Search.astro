@@ -244,22 +244,36 @@
           </a>
         </div>
       `).join('');
-
-      els.results.querySelectorAll('.result-trigger').forEach(el => {
-        el.addEventListener('mouseenter', () => applyThemeColors(JSON.parse((el as HTMLElement).dataset.palette || '[]'), true));
-        el.addEventListener('mouseleave', () => applyThemeColors([], false));
-      });
     };
+
+    // Navbar est transition:persist — on n'attache les listeners qu'une seule fois
+    if ((els.results as any).__searchBound) return;
+    (els.results as any).__searchBound = true;
+
+    // Délégation d'événements pour l'aura sur les résultats de recherche
+    els.results.addEventListener('mouseenter', (e) => {
+      const trigger = (e.target as HTMLElement).closest('.result-trigger') as HTMLElement;
+      if (trigger) {
+        applyThemeColors(JSON.parse(trigger.dataset.palette || '[]'), true);
+      }
+    }, true);
+
+    els.results.addEventListener('mouseleave', (e) => {
+      const trigger = (e.target as HTMLElement).closest('.result-trigger') as HTMLElement;
+      if (trigger) {
+        applyThemeColors([], false);
+      }
+    }, true);
 
     els.toggle!.addEventListener('click', () => toggleOverlay(true));
     els.close!.addEventListener('click', () => toggleOverlay(false));
-    
+
     els.input!.addEventListener('input', () => {
       const q = els.input!.value.toLowerCase().trim();
       if (!q) return renderResults([]);
 
-      const filtered = searchIndex.filter(item => 
-        item.title.toLowerCase().includes(q) || 
+      const filtered = searchIndex.filter(item =>
+        item.title.toLowerCase().includes(q) ||
         item.tags.some((t: string) => t.toLowerCase().includes(q)) ||
         (item.poem && item.poem.toLowerCase().includes(q))
       );

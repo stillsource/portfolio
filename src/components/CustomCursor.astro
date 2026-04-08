@@ -71,35 +71,42 @@
 </style>
 
 <script>
+  let cursorInitialized = false;
+  let rafId: number | null = null;
+
   function initCursor() {
     const cursor = document.getElementById('custom-cursor');
     if (!cursor) return;
+
+    // Si déjà initialisé globalement, on s'assure juste que l'opacité est correcte
+    if (cursorInitialized) {
+      cursor.style.opacity = '1';
+      return;
+    }
 
     let mouseX = -100;
     let mouseY = -100;
     let currentX = -100;
     let currentY = -100;
-    let initialized = false;
+    let firstMove = false;
 
     const onMouseMove = (e: MouseEvent) => {
       mouseX = e.clientX;
       mouseY = e.clientY;
       
-      if (!initialized) {
+      if (!firstMove) {
         currentX = mouseX;
         currentY = mouseY;
         cursor.style.opacity = '1';
-        initialized = true;
+        firstMove = true;
       }
     };
 
     const updateCursor = () => {
-      if (initialized) {
-        // Facteur de lissage augmenté (0.3 au lieu de 0.15) pour un suivi plus "sharp"
+      if (firstMove) {
         currentX += (mouseX - currentX) * 0.35;
         currentY += (mouseY - currentY) * 0.35;
         
-        // On évite les calculs inutiles si l'écart est infime
         if (Math.abs(mouseX - currentX) < 0.01 && Math.abs(mouseY - currentY) < 0.01) {
           currentX = mouseX;
           currentY = mouseY;
@@ -107,13 +114,12 @@
 
         cursor.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) translate(-50%, -50%)`;
       }
-      requestAnimationFrame(updateCursor);
+      rafId = requestAnimationFrame(updateCursor);
     };
 
     window.addEventListener('mousemove', onMouseMove, { passive: true });
-    requestAnimationFrame(updateCursor);
+    rafId = requestAnimationFrame(updateCursor);
 
-    // Utilisation de la délégation d'événements pour plus de précision et de performance
     const handleOver = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (!target) return;
@@ -121,29 +127,15 @@
       const isInteractive = target.closest('a, button, .clickable-image');
       const isReading = target.closest('.has-overlay');
 
-      if (isInteractive) {
-        cursor.classList.add('is-hovering');
-      } else {
-        cursor.classList.remove('is-hovering');
-      }
-
-      if (isReading) {
-        cursor.classList.add('is-reading');
-      } else {
-        cursor.classList.remove('is-reading');
-      }
+      cursor.classList.toggle('is-hovering', !!isInteractive);
+      cursor.classList.toggle('is-reading', !!isReading);
     };
 
     document.addEventListener('mouseover', handleOver);
-    
-    // Cacher le curseur quand on quitte la fenêtre
-    document.addEventListener('mouseleave', () => {
-      cursor.style.opacity = '0';
-    });
-    
-    document.addEventListener('mouseenter', () => {
-      cursor.style.opacity = '1';
-    });
+    document.addEventListener('mouseleave', () => cursor.style.opacity = '0');
+    document.addEventListener('mouseenter', () => cursor.style.opacity = '1');
+
+    cursorInitialized = true;
   }
 
   document.addEventListener('astro:page-load', initCursor);
