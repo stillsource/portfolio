@@ -71,7 +71,7 @@ const nextTitle = nextRoll ? nextRoll.data.title : "À Propos de l'Errance";
       height: 100%;
       width: 0%;
       background: var(--accent);
-      transition: width 2s linear;
+      transition: width 3.5s linear;
     }
 
     .next-roll-footer.is-loading .next-progress-bar {
@@ -83,7 +83,7 @@ const nextTitle = nextRoll ? nextRoll.data.title : "À Propos de l'Errance";
       opacity: 0;
       filter: blur(15px);
       transform: scale(0.99);
-      transition: all 1s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     body.is-transitioning .bg-aura {
@@ -169,7 +169,7 @@ const nextTitle = nextRoll ? nextRoll.data.title : "À Propos de l'Errance";
               if (footer.classList.contains('is-loading')) {
                 document.body.classList.add('is-transitioning');
               }
-            }, 1500);
+            }, 3200);
             
             if (navigationTimer) clearTimeout(navigationTimer);
             
@@ -177,7 +177,7 @@ const nextTitle = nextRoll ? nextRoll.data.title : "À Propos de l'Errance";
               if (footer.classList.contains('is-loading')) {
                 navigate(nextUrl);
               }
-            }, 2500);
+            }, 4000);
           }
         } else {
           // Annulation si on remonte
