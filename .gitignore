@@ -23,3 +23,11 @@ pnpm-debug.log*
 # jetbrains setting folder
 .idea/
 .superpowers/
+
+# AI tool state (never commit session data)
+.claude/
+.gemini/
+.omg/
+
+# Go compiled binaries (never commit built artifacts)
+src/scripts/go/kdrive-sync/kdrive-sync

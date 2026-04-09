@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "sync": "tsx src/scripts/fetch-kdrive.ts",
+    "sync": "KDRIVE_OUT_DIR=\"$PWD/src/content/rolls/synced\" KDRIVE_INDEX_FILE=\"$PWD/public/search-index.json\" go -C src/scripts/go/kdrive-sync run ./cmd",
     "build": "npm run sync && astro build",
     "preview": "astro preview",
     "astro": "astro"

@@ -19,6 +19,7 @@ export const rollSchema = z.object({
   audioUrl: z.string().optional(), // URL du fichier audio contextuel
   images: z.array(z.object({
     url: z.string(),
+    alt: z.string().optional(),
     exif: exifSchema.optional(),
     metadata: z.string().optional(),
     poem: z.string().optional(),
