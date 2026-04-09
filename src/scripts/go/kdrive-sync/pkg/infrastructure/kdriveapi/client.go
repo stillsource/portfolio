@@ -139,8 +139,11 @@ func (c *Client) DecodeJSON(ctx context.Context, method, endpoint string, body [
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
-	return json.NewDecoder(resp.Body).Decode(out)
+	defer func() { _ = resp.Body.Close() }()
+	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+		return fmt.Errorf("decode response: %w", err)
+	}
+	return nil
 }
 
 func (c *Client) buildRequest(ctx context.Context, method, url string, body []byte) (*http.Request, error) {
@@ -173,7 +176,7 @@ func sleepCtx(ctx context.Context, d time.Duration) error {
 	defer t.Stop()
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return ctx.Err() //nolint:wrapcheck // passthrough: ctx cancellation is not our error to wrap
 	case <-t.C:
 		return nil
 	}

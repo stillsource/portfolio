@@ -5,10 +5,9 @@ package searchindexwriter
 import (
 	"encoding/json"
 	"fmt"
+	"kdrive-sync/pkg/domain"
 	"os"
 	"path/filepath"
-
-	"kdrive-sync/pkg/domain"
 )
 
 const (

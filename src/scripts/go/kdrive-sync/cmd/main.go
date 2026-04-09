@@ -6,12 +6,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"kdrive-sync/cmd/config"
+	"kdrive-sync/pkg/infrastructure/di"
 	"os"
 	"os/signal"
 	"syscall"
-
-	"kdrive-sync/cmd/config"
-	"kdrive-sync/pkg/infrastructure/di"
 )
 
 func main() {
@@ -27,7 +26,7 @@ func run() error {
 
 	env, err := config.Load(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("load config: %w", err)
 	}
 
 	container := di.NewContainer(di.Config{
@@ -41,5 +40,8 @@ func run() error {
 		KDriveBaseURL: env.KDriveBaseURL,
 	})
 
-	return container.GetSyncRolls().Execute(ctx, env.FolderID)
+	if err := container.GetSyncRolls().Execute(ctx, env.FolderID); err != nil {
+		return fmt.Errorf("sync: %w", err)
+	}
+	return nil
 }

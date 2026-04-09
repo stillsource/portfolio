@@ -4,11 +4,10 @@ package poetryparser
 import (
 	"bytes"
 	"fmt"
+	"kdrive-sync/pkg/domain"
 	"strings"
 
 	"gopkg.in/yaml.v3"
-
-	"kdrive-sync/pkg/domain"
 )
 
 // Frontmatter parses poetry markdown files that optionally carry a YAML

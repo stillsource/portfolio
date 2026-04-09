@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-
 	"kdrive-sync/pkg/infrastructure/kdriveapi"
 )
 
@@ -26,7 +25,7 @@ func (k *KDrive) DownloadFile(ctx context.Context, fileID string) ([]byte, error
 	if err != nil {
 		return nil, fmt.Errorf("download %s: %w", fileID, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {

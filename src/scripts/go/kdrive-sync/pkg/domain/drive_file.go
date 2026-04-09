@@ -1,3 +1,5 @@
+// Package domain defines the core business types: DriveFile, Roll, Image,
+// ExifData, Poetry, and the helper types that compose them.
 package domain
 
 import "time"
@@ -5,6 +7,7 @@ import "time"
 // DriveFileType distinguishes folders from regular files on the drive.
 type DriveFileType string
 
+// Drive file type constants.
 const (
 	DriveFileTypeDir  DriveFileType = "dir"
 	DriveFileTypeFile DriveFileType = "file"

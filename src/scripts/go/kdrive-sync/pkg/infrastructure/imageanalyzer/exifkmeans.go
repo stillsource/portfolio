@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"html"
 	"image"
+
 	// Side effect: register JPEG decoder with image.Decode.
 	_ "image/jpeg"
+	"kdrive-sync/pkg/domain"
 	"math"
 	"regexp"
 	"sort"
@@ -15,8 +17,6 @@ import (
 
 	"github.com/lucasb-eyer/go-colorful"
 	"github.com/rwcarlsen/goexif/exif"
-
-	"kdrive-sync/pkg/domain"
 )
 
 // Tuning knobs for the palette k-means routine.
@@ -88,20 +88,20 @@ func extractExif(data []byte) domain.ExifData {
 }
 
 func cameraBody(x *exif.Exif) string {
-	make := strings.TrimSpace(strings.ReplaceAll(tagString(x, exif.Make), "Corporation", ""))
+	cameraMake := strings.TrimSpace(strings.ReplaceAll(tagString(x, exif.Make), "Corporation", ""))
 	model := tagString(x, exif.Model)
 
 	switch {
-	case make == "" && model == "":
+	case cameraMake == "" && model == "":
 		return ""
-	case make == "":
+	case cameraMake == "":
 		return model
 	case model == "":
-		return make
-	case strings.HasPrefix(model, make):
+		return cameraMake
+	case strings.HasPrefix(model, cameraMake):
 		return model
 	default:
-		return make + " " + model
+		return cameraMake + " " + model
 	}
 }
 
@@ -234,8 +234,8 @@ func samplePixels(img image.Image) []colorful.Color {
 		stride++
 	}
 
-	cap := ((w / stride) + 1) * ((h / stride) + 1)
-	samples := make([]colorful.Color, 0, cap)
+	capacity := ((w / stride) + 1) * ((h / stride) + 1)
+	samples := make([]colorful.Color, 0, capacity)
 	for y := bounds.Min.Y; y < bounds.Max.Y; y += stride {
 		for x := bounds.Min.X; x < bounds.Max.X; x += stride {
 			c, ok := colorful.MakeColor(img.At(x, y))
@@ -247,11 +247,15 @@ func samplePixels(img image.Image) []colorful.Color {
 	return samples
 }
 
-type labBucket struct {
-	l, a, b float64
-	count   int
-}
+// labPoint is a pre-computed CIELAB coordinate triple.
+type labPoint struct{ l, a, b float64 }
 
+// kmeans clusters pixels into a.paletteSize color groups using k-means in
+// CIELAB space. It returns a hex palette sorted bright→dark and the dominant
+// (largest-cluster) color.
+//
+// Pixels are converted to Lab once before the loop; distances use squared
+// Euclidean (no sqrt needed for nearest-centroid comparison).
 func (a *ExifKMeans) kmeans(pixels []colorful.Color) ([]string, string) {
 	k := a.paletteSize
 	if len(pixels) < k {
@@ -261,61 +265,66 @@ func (a *ExifKMeans) kmeans(pixels []colorful.Color) ([]string, string) {
 		return nil, ""
 	}
 
-	centroids := make([]colorful.Color, k)
-	for i := range centroids {
-		centroids[i] = pixels[(i*len(pixels))/k+len(pixels)/(2*k)]
+	// Pre-convert all pixels to Lab — O(n) conversions instead of O(n·k·iter).
+	labs := make([]labPoint, len(pixels))
+	for i, p := range pixels {
+		labs[i].l, labs[i].a, labs[i].b = p.Lab()
 	}
 
-	buckets := make([]labBucket, k)
+	// Evenly-spaced seed centroids drawn directly from the Lab slice.
+	centroids := make([]labPoint, k)
+	for i := range centroids {
+		centroids[i] = labs[(i*len(labs))/k+len(labs)/(2*k)]
+	}
 
-	for iter := 0; iter < a.iterations; iter++ {
-		for i := range buckets {
-			buckets[i] = labBucket{}
-		}
-		for _, p := range pixels {
+	acc := make([]labPoint, k)
+	counts := make([]int, k)
+
+	for range a.iterations {
+		clear(acc)
+		clear(counts)
+
+		for _, p := range labs {
 			best := 0
 			bestDist := math.Inf(1)
-			for i := range centroids {
-				d := p.DistanceLab(centroids[i])
-				if d < bestDist {
+			for i, c := range centroids {
+				dl := p.l - c.l
+				da := p.a - c.a
+				db := p.b - c.b
+				// Squared distance — ordering is preserved, sqrt is unnecessary.
+				if d := dl*dl + da*da + db*db; d < bestDist {
 					bestDist = d
 					best = i
 				}
 			}
-			l, av, bv := p.Lab()
-			buckets[best].l += l
-			buckets[best].a += av
-			buckets[best].b += bv
-			buckets[best].count++
+			acc[best].l += p.l
+			acc[best].a += p.a
+			acc[best].b += p.b
+			counts[best]++
 		}
+
 		for i := range centroids {
-			if buckets[i].count > 0 {
-				centroids[i] = colorful.Lab(
-					buckets[i].l/float64(buckets[i].count),
-					buckets[i].a/float64(buckets[i].count),
-					buckets[i].b/float64(buckets[i].count),
-				)
+			if n := float64(counts[i]); n > 0 {
+				centroids[i] = labPoint{l: acc[i].l / n, a: acc[i].a / n, b: acc[i].b / n}
 			}
 		}
 	}
 
+	// Dominant = largest cluster.
 	dominantIdx := 0
-	for i := range buckets {
-		if buckets[i].count > buckets[dominantIdx].count {
+	for i, c := range counts {
+		if c > counts[dominantIdx] {
 			dominantIdx = i
 		}
 	}
-	dominantHex := centroids[dominantIdx].Hex()
+	dominantHex := colorful.Lab(centroids[dominantIdx].l, centroids[dominantIdx].a, centroids[dominantIdx].b).Hex()
 
-	sort.SliceStable(centroids, func(i, j int) bool {
-		li, _, _ := centroids[i].Lab()
-		lj, _, _ := centroids[j].Lab()
-		return li > lj
-	})
+	// Sort bright → dark by CIELAB L* (already available, no roundtrip needed).
+	sort.SliceStable(centroids, func(i, j int) bool { return centroids[i].l > centroids[j].l })
 
-	palette := make([]string, 0, len(centroids))
+	palette := make([]string, 0, k)
 	for _, c := range centroids {
-		palette = append(palette, c.Hex())
+		palette = append(palette, colorful.Lab(c.l, c.a, c.b).Hex())
 	}
 	return palette, dominantHex
 }

@@ -5,14 +5,13 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"kdrive-sync/pkg/domain"
+	"kdrive-sync/pkg/service"
 	"log/slog"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
-
-	"kdrive-sync/pkg/domain"
-	"kdrive-sync/pkg/service"
 )
 
 // SyncRolls mirrors the fetch-kdrive.ts pipeline: list rolls, enrich each
@@ -89,7 +88,7 @@ func (uc *SyncRolls) Execute(ctx context.Context, rootFolderID string) error {
 	index := make([]domain.SearchIndexItem, 0, len(folders))
 	for _, folder := range folders {
 		if err := ctx.Err(); err != nil {
-			return err
+			return err //nolint:wrapcheck // passthrough: ctx cancellation is not our error to wrap
 		}
 
 		item, ok := uc.processRoll(ctx, folder)

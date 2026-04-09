@@ -2,21 +2,74 @@ version: 2
 
 linters:
   enable:
+    # Default linters (vet + staticcheck family)
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
     - unused
+    # HTTP / network hygiene
     - bodyclose
-    - gofmt
+    - noctx
+    # Style (Effective Go + Uber)
+    - revive
+    - gocritic
     - misspell
+    - whitespace
+    # Error wrapping
+    - errorlint
+    - wrapcheck
+    # Nil safety
+    - nilnil
+formatters:
+  enable:
+    - gofumpt
+    - goimports
 
 linters-settings:
   govet:
-    check-shadowing: true
-  gofmt:
-    simplify: true
+    shadow:
+      enabled: true
+  revive:
+    rules:
+      - name: exported
+      - name: var-naming
+      - name: package-comments
+      - name: error-return
+      - name: if-return
+      - name: increment-decrement
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: unused-parameter
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+    disabled-checks:
+      - commentedOutCode
+  errorlint:
+    errorf: true
+    asserts: true
+    comparison: true
+  wrapcheck:
+    ignorePackageGlobs:
+      - "kdrive-sync/*"
+    ignoreSigRegexps:
+      - "\\(context\\.Context\\)\\.Err"
+  gofumpt:
+    extra-rules: true
+
+issues:
+  exclude-rules:
+    # DI container getters: single-purpose factories, no wrapping needed
+    - path: "pkg/infrastructure/di/"
+      linters: [wrapcheck]
+    # cmd is the outer boundary, direct errors are fine
+    - path: "cmd/"
+      linters: [wrapcheck]
 
 run:
   timeout: 5m

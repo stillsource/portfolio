@@ -1,3 +1,5 @@
+// Package service declares the service interfaces that decouple the usecase
+// layer from its infrastructure implementations.
 package service
 
 import "context"

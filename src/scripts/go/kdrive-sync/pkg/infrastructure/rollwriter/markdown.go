@@ -4,12 +4,11 @@ package rollwriter
 import (
 	"bytes"
 	"fmt"
+	"kdrive-sync/pkg/domain"
 	"os"
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
-
-	"kdrive-sync/pkg/domain"
 )
 
 const (

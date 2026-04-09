@@ -4,10 +4,9 @@ package filelister
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"kdrive-sync/pkg/domain"
 	"kdrive-sync/pkg/infrastructure/kdriveapi"
+	"time"
 )
 
 // KDrive lists files through the Infomaniak kDrive REST API.
