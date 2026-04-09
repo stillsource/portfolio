@@ -29,9 +29,10 @@ func (p *Processor) LoadImage(path string) (image.Image, error) {
 }
 
 type ProcessResult struct {
-	Image    image.Image
-	Blurhash string
-	Palette  []string
+	Image         image.Image
+	Blurhash      string
+	Palette       []string
+	DominantColor string
 }
 
 func (p *Processor) Process(src image.Image, w, h int) (*ProcessResult, error) {
@@ -43,15 +44,16 @@ func (p *Processor) Process(src image.Image, w, h int) (*ProcessResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	palette := metadata.GeneratePalette(img, 5)
+	palette, dominant := metadata.GenerateMetadata(img, 5)
 
 	// 3. Apply Watermark (last step before saving)
 	final := p.ApplyWatermark(img)
 
 	return &ProcessResult{
-		Image:    final,
-		Blurhash: hash,
-		Palette:  palette,
+		Image:         final,
+		Blurhash:      hash,
+		Palette:       palette,
+		DominantColor: dominant,
 	}, nil
 }
 
@@ -91,6 +93,14 @@ func (p *Processor) GenerateBlurhash(src image.Image, x, y int) (string, error) 
 		return "", fmt.Errorf("blurhash failed: %w", err)
 	}
 	return h, nil
+}
+
+func (p *Processor) GenerateMetadata(src image.Image, numColors int) ([]string, string) {
+	return metadata.GenerateMetadata(src, numColors)
+}
+
+func (p *Processor) GeneratePalette(src image.Image, numColors int) []string {
+	return metadata.GeneratePalette(src, numColors)
 }
 
 func (p *Processor) SaveAsJPEG(img image.Image, q int, path string) error {

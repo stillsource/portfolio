@@ -17,9 +17,12 @@ func TestClusterColors(t *testing.T) {
 		{R: 0, G: 0, B: 1}, // Blue
 	}
 
-	palette := ClusterColors(pixels, 3)
+	palette, dominant := ClusterColors(pixels, 3)
 	if len(palette) != 3 {
 		t.Errorf("Expected 3 colors, got %d", len(palette))
+	}
+	if dominant == "" {
+		t.Error("Expected a dominant color, got empty string")
 	}
 }
 
@@ -41,8 +44,23 @@ func TestAggregatePalette(t *testing.T) {
 	img1 := image.NewRGBA(image.Rect(0, 0, 10, 10))
 	img2 := image.NewRGBA(image.Rect(0, 0, 10, 10))
 	
-	palette := AggregatePalette([]image.Image{img1, img2}, 5)
+	palette, dominant := AggregatePalette([]image.Image{img1, img2}, 5)
 	if len(palette) != 5 {
 		t.Errorf("Expected 5 colors, got %d", len(palette))
+	}
+	if dominant == "" {
+		t.Error("Expected a dominant color, got empty string")
+	}
+}
+
+func BenchmarkClusterColors(b *testing.B) {
+	pixels := make([]colorful.Color, 1024)
+	for i := range pixels {
+		pixels[i] = colorful.FastWarmColor()
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ClusterColors(pixels, 5)
 	}
 }

@@ -9,6 +9,7 @@ require (
 	github.com/evanoberholster/imagemeta v0.3.1
 	github.com/gen2brain/avif v0.3.2
 	github.com/lucasb-eyer/go-colorful v1.2.0
+	golang.org/x/text v0.21.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 

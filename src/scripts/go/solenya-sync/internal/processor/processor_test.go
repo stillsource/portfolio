@@ -85,6 +85,9 @@ func TestProcessor(t *testing.T) {
 		if len(res.Palette) == 0 {
 			t.Error("Empty palette in result")
 		}
+		if res.DominantColor == "" {
+			t.Error("Empty dominant color in result")
+		}
 	})
 
 	t.Run("Save", func(t *testing.T) {

@@ -1,12 +1,12 @@
 {
-  "turn_count": 1,
-  "last_session_id": "5564e07a-ea5c-49e1-be72-86921998745d",
-  "last_event_key": "5564e07a-ea5c-49e1-be72-86921998745d:transcript:fe269f555493cd566b7d15571593962bd58c25224e6ad64aa7ce442d58dded55",
-  "last_transcript_hash": "fe269f555493cd566b7d15571593962bd58c25224e6ad64aa7ce442d58dded55",
+  "turn_count": 19,
+  "last_session_id": "f8166095-bfd6-40ad-b406-125623dcc50f",
+  "last_event_key": "f8166095-bfd6-40ad-b406-125623dcc50f:transcript:0190af261c256576f8fdeb4618fb3ef059f27dc9efac9e80040c912e022e07ac",
+  "last_transcript_hash": "0190af261c256576f8fdeb4618fb3ef059f27dc9efac9e80040c912e022e07ac",
   "last_model": "gemini-3-flash-preview",
-  "last_turn_total_tokens": 125810,
-  "last_session_total_tokens": 3262223,
+  "last_turn_total_tokens": 123521,
+  "last_session_total_tokens": 7492921,
   "cwd_mode": "parent-leaf",
   "last_cwd_label": "perso_projects/portfolio-astro",
-  "updated_at": "2026-04-08T16:44:55.640Z"
+  "updated_at": "2026-04-09T07:41:53.577Z"
 }

@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"solenya-sync/internal/metadata"
 	"strings"
-	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -14,7 +13,7 @@ import (
 // RollData matches the rollSchema in src/types/content.ts
 type RollData struct {
 	Title         string      `yaml:"title"`
-	Date          time.Time   `yaml:"date"`
+	Date          string      `yaml:"date"` // Formatted as YYYY-MM-DD
 	Tags          []string    `yaml:"tags,omitempty"`
 	Poem          string      `yaml:"poem,omitempty"`
 	Palette       []string    `yaml:"palette,omitempty"`
