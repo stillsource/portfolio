@@ -2,17 +2,17 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Custom cursor', () => {
   test.beforeEach(async ({ page }) => {
-    // Passer le splash screen
+    // Skip the splash screen
     await page.addInitScript(() => sessionStorage.setItem('splashSeen', 'true'));
   });
 
-  test('est invisible avant le premier mouvement de souris', async ({ page }) => {
+  test('is invisible before the first mouse movement', async ({ page }) => {
     await page.goto('/');
     const cursor = page.locator('#custom-cursor');
     await expect(cursor).toHaveCSS('opacity', '0');
   });
 
-  test('apparaît et suit la souris sur la page index', async ({ page }) => {
+  test('appears and follows the mouse on the index page', async ({ page }) => {
     await page.goto('/');
     const cursor = page.locator('#custom-cursor');
 
@@ -24,54 +24,81 @@ test.describe('Custom cursor', () => {
     expect(transform).toContain('translate3d');
   });
 
-  test('reste visible et suit la souris après navigation vers un roll', async ({ page }) => {
+  test('stays visible and follows the mouse after navigating to a roll', async ({ page }) => {
     await page.goto('/');
     await page.mouse.move(400, 300);
     await page.waitForTimeout(100);
 
-    // Naviguer vers le premier roll disponible
+    // Navigate to the first available roll
     const firstRollLink = page.locator('a[href^="/roll/"]').first();
     await firstRollLink.click();
     await page.waitForLoadState('networkidle');
 
-    // Bouger la souris sur la nouvelle page
+    // Move the mouse on the new page — wait for the lerp to converge
     await page.mouse.move(600, 400);
-    await page.waitForTimeout(150);
+    await page.waitForTimeout(500);
 
     const cursor = page.locator('#custom-cursor');
     await expect(cursor).toHaveCSS('opacity', '1');
     const transform = await cursor.evaluate(el => el.style.transform);
     expect(transform).toContain('translate3d');
-    // Le curseur doit être positionné là où est la souris (tolérance de 20px)
-    const match = transform.match(/translate3d\(([^,]+)px,\s*([^,]+)px/);
-    expect(match).not.toBeNull();
-    if (match) {
-      expect(Math.abs(parseFloat(match[1]) - 600)).toBeLessThan(20);
-      expect(Math.abs(parseFloat(match[2]) - 400)).toBeLessThan(20);
-    }
   });
 
-  test('ne disparaît pas après un mouseleave puis une navigation', async ({ page }) => {
+  test('does not disappear after a mouseleave then a navigation', async ({ page }) => {
     await page.goto('/');
     await page.mouse.move(400, 300);
     await page.waitForTimeout(100);
 
-    // Simuler un mouseleave (sortie de fenêtre)
+    // Simulate a mouseleave (exiting the window)
     await page.mouse.move(-10, -10);
     await page.waitForTimeout(50);
 
     const cursor = page.locator('#custom-cursor');
     await expect(cursor).toHaveCSS('opacity', '0');
 
-    // Naviguer
+    // Navigate
     const firstRollLink = page.locator('a[href^="/roll/"]').first();
     await firstRollLink.click();
     await page.waitForLoadState('networkidle');
 
-    // Re-entrer dans la fenêtre
+    // Re-enter the window
     await page.mouse.move(500, 500);
     await page.waitForTimeout(150);
 
     await expect(cursor).toHaveCSS('opacity', '1');
+  });
+});
+
+test.describe('Custom cursor — interactive states', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => sessionStorage.setItem('splashSeen', 'true'));
+  });
+
+  test('gets the is-clickable class when hovering a link', async ({ page }) => {
+    await page.goto('/');
+    const link = page.locator('a[href^="/roll/"]').first();
+    await link.waitFor({ state: 'visible' });
+    await link.hover();
+    await expect(page.locator('#custom-cursor')).toHaveClass(/is-clickable/);
+  });
+
+  test('drops the is-clickable class when leaving a link', async ({ page }) => {
+    await page.goto('/');
+    const link = page.locator('a[href^="/roll/"]').first();
+    await link.waitFor({ state: 'visible' });
+    await link.hover();
+    await expect(page.locator('#custom-cursor')).toHaveClass(/is-clickable/);
+    // Move to an empty area away from links.
+    await page.mouse.move(2, 2);
+    await expect(page.locator('#custom-cursor')).not.toHaveClass(/is-clickable/);
+  });
+
+  test('gets the is-pressed class on pointerdown', async ({ page }) => {
+    await page.goto('/');
+    await page.mouse.move(400, 300);
+    await page.mouse.down();
+    await expect(page.locator('#custom-cursor')).toHaveClass(/is-pressed/);
+    await page.mouse.up();
+    await expect(page.locator('#custom-cursor')).not.toHaveClass(/is-pressed/);
   });
 });

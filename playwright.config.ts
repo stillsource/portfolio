@@ -14,12 +14,23 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      testIgnore: /gestures\.spec\.ts/,
+    },
+    {
+      name: 'mobile',
+      // Pixel 7 uses Chromium (preinstalled) and still emulates touch; avoids
+      // the WebKit download that iPhone devices trigger.
+      use: { ...devices['Pixel 7'] },
+      testMatch: /gestures\.spec\.ts/,
     },
   ],
   webServer: {
-    command: 'npm run dev',
+    command: 'node scripts/generate-search-index.mjs && npm run dev',
     url: 'http://localhost:4321',
     reuseExistingServer: !process.env.CI,
     timeout: 30000,
+    env: {
+      ASTRO_DISABLE_DEV_TOOLBAR: 'true',
+    },
   },
 });
