@@ -1,5 +1,7 @@
 package domain
 
+import "strings"
+
 // ExifData holds the camera metadata surfaced in the UI.
 //
 // Field names match the Astro content schema (src/types/content.ts) so the
@@ -16,4 +18,17 @@ type ExifData struct {
 // IsZero reports whether all fields are empty.
 func (e ExifData) IsZero() bool {
 	return e == (ExifData{})
+}
+
+// Caption produces the pre-formatted "BODY • LENS • FOCAL • APERTURE • SHUTTER • ISO"
+// string used as the lightbox/journal caption. Computed once at sync time so
+// the front-end doesn't need a formatter.
+func (e ExifData) Caption() string {
+	parts := make([]string, 0, 6)
+	for _, p := range []string{e.Body, e.Lens, e.FocalLength, e.Aperture, e.Shutter, e.ISO} {
+		if p != "" {
+			parts = append(parts, p)
+		}
+	}
+	return strings.Join(parts, " • ")
 }

@@ -6,4 +6,6 @@ type ImageAnalysis struct {
 	Exif          ExifData
 	Palette       []string
 	DominantColor string
+	Width         int
+	Height        int
 }

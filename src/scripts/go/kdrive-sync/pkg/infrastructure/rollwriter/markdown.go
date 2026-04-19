@@ -7,6 +7,7 @@ import (
 	"kdrive-sync/pkg/domain"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -29,6 +30,9 @@ func NewMarkdown(outDir string) *Markdown {
 
 // WriteRoll serializes roll as a markdown file named slug.md.
 func (m *Markdown) WriteRoll(slug string, roll *domain.Roll) error {
+	if strings.Trim(slug, "-") == "" {
+		return fmt.Errorf("refusing to write roll: empty slug after sanitisation")
+	}
 	if err := os.MkdirAll(m.outDir, dirPerm); err != nil {
 		return fmt.Errorf("mkdir %s: %w", m.outDir, err)
 	}

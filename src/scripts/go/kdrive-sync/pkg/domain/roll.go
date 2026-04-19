@@ -12,5 +12,6 @@ type Roll struct {
 	Palette       []string `yaml:"palette,omitempty"`
 	DominantColor string   `yaml:"dominantColor,omitempty"`
 	AudioURL      string   `yaml:"audioUrl,omitempty"`
+	VideoURL      string   `yaml:"videoUrl,omitempty"`
 	Images        []Image  `yaml:"images"`
 }

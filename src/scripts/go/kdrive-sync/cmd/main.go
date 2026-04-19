@@ -1,12 +1,18 @@
 // Command kdrive-sync mirrors a kDrive folder tree into Astro-compatible
 // markdown files. It is a drop-in Go replacement for the legacy
 // fetch-kdrive.ts script.
+//
+// Subcommands:
+//
+//	(default)         sync kDrive → markdown files
+//	extract-palette   download an image URL and print its CIELAB palette as JSON
 package main
 
 import (
 	"context"
 	"fmt"
 	"kdrive-sync/cmd/config"
+	"kdrive-sync/cmd/extractpalette"
 	"kdrive-sync/pkg/infrastructure/di"
 	"os"
 	"os/signal"
@@ -23,6 +29,14 @@ func main() {
 func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	if len(os.Args) > 1 && os.Args[1] == "extract-palette" {
+		url := ""
+		if len(os.Args) > 2 {
+			url = os.Args[2]
+		}
+		return extractpalette.Run(ctx, url)
+	}
 
 	env, err := config.Load(ctx)
 	if err != nil {

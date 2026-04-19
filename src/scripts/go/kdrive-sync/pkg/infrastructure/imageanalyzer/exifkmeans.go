@@ -60,6 +60,10 @@ func (a *ExifKMeans) Analyze(data []byte) (domain.ImageAnalysis, error) {
 		return result, fmt.Errorf("decode image: %w", err)
 	}
 
+	bounds := img.Bounds()
+	result.Width = bounds.Dx()
+	result.Height = bounds.Dy()
+
 	palette, dominant := a.extractPalette(img)
 	result.Palette = palette
 	result.DominantColor = dominant

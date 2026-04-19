@@ -86,16 +86,19 @@ func (uc *SyncRolls) Execute(ctx context.Context, rootFolderID string) error {
 	uc.logger.Info("rolls discovered", slog.Int("count", len(folders)))
 
 	index := make([]domain.SearchIndexItem, 0, len(folders))
+	var totalPhotos, totalSkipped int
 	for _, folder := range folders {
 		if err := ctx.Err(); err != nil {
 			return err //nolint:wrapcheck // passthrough: ctx cancellation is not our error to wrap
 		}
 
-		item, ok := uc.processRoll(ctx, folder)
+		item, photos, skipped, ok := uc.processRoll(ctx, folder)
 		if !ok {
 			continue
 		}
 		index = append(index, item)
+		totalPhotos += photos
+		totalSkipped += skipped
 	}
 
 	if err := uc.indexWriter.WriteIndex(index); err != nil {
@@ -103,35 +106,38 @@ func (uc *SyncRolls) Execute(ctx context.Context, rootFolderID string) error {
 	}
 	uc.logger.Info("sync complete",
 		slog.Int("rolls", len(index)),
+		slog.Int("photos", totalPhotos),
+		slog.Int("skipped_images", totalSkipped),
 	)
 	return nil
 }
 
 // processRoll fetches one folder and produces the corresponding search-index
-// entry. It returns false when the roll was skipped.
-func (uc *SyncRolls) processRoll(ctx context.Context, folder domain.DriveFile) (domain.SearchIndexItem, bool) {
+// entry. It returns (item, photos, skipped, ok); ok is false when the roll was skipped entirely.
+func (uc *SyncRolls) processRoll(ctx context.Context, folder domain.DriveFile) (domain.SearchIndexItem, int, int, bool) {
 	rollLogger := uc.logger.With(slog.String("roll", folder.Name))
 	rollLogger.Info("processing roll")
 
 	files, err := uc.lister.ListFiles(ctx, folder.ID)
 	if err != nil {
 		rollLogger.Warn("list roll folder failed", slog.String("err", err.Error()))
-		return domain.SearchIndexItem{}, false
+		return domain.SearchIndexItem{}, 0, 0, false
 	}
 
 	classified := classifyFiles(files)
 	if len(classified.images) == 0 {
 		rollLogger.Warn("no images found, skipping")
-		return domain.SearchIndexItem{}, false
+		return domain.SearchIndexItem{}, 0, 0, false
 	}
 
 	poems := uc.loadPoetry(ctx, classified.poetry, rollLogger)
 	audioURL := uc.loadAudio(ctx, classified.audio, rollLogger)
+	videoURL := uc.loadVideo(ctx, classified.video, rollLogger)
 
-	images, palettes, tags := uc.analyzeImages(ctx, folder.Name, classified.images, poems.PhotoPoems, rollLogger)
+	images, palettes, tags, skipped := uc.analyzeImages(ctx, folder.Name, classified.images, poems.PhotoPoems, rollLogger)
 	if len(images) == 0 {
 		rollLogger.Warn("no images analyzed, skipping")
-		return domain.SearchIndexItem{}, false
+		return domain.SearchIndexItem{}, 0, 0, false
 	}
 
 	rollPalette := uc.aggregator.Aggregate(palettes, uc.paletteSize)
@@ -151,12 +157,13 @@ func (uc *SyncRolls) processRoll(ctx context.Context, folder domain.DriveFile) (
 		Palette:       rollPalette,
 		DominantColor: dominant,
 		AudioURL:      audioURL,
+		VideoURL:      videoURL,
 		Images:        images,
 	}
 
 	if err := uc.rollWriter.WriteRoll(slug, roll); err != nil {
 		rollLogger.Error("write roll failed", slog.String("err", err.Error()))
-		return domain.SearchIndexItem{}, false
+		return domain.SearchIndexItem{}, 0, 0, false
 	}
 	rollLogger.Info("roll written", slog.String("slug", slug), slog.Int("images", len(images)))
 
@@ -172,7 +179,7 @@ func (uc *SyncRolls) processRoll(ctx context.Context, folder domain.DriveFile) (
 		Poem:    poems.GlobalPoem,
 		Cover:   cover,
 		Palette: rollPalette,
-	}, true
+	}, len(images), skipped, true
 }
 
 // -----------------------------------------------------------------------------
@@ -216,6 +223,20 @@ func (uc *SyncRolls) loadAudio(ctx context.Context, file *domain.DriveFile, logg
 	return url
 }
 
+func (uc *SyncRolls) loadVideo(ctx context.Context, file *domain.DriveFile, logger *slog.Logger) string {
+	if file == nil {
+		return ""
+	}
+	logger.Info("video found", slog.String("file", file.Name))
+
+	url, err := uc.publisher.PublishShare(ctx, file.ID)
+	if err != nil {
+		logger.Warn("publish video failed", slog.String("err", err.Error()))
+		return ""
+	}
+	return url
+}
+
 // -----------------------------------------------------------------------------
 // Concurrent image processing
 // -----------------------------------------------------------------------------
@@ -233,7 +254,7 @@ func (uc *SyncRolls) analyzeImages(
 	photos []domain.DriveFile,
 	photoPoems map[string]string,
 	logger *slog.Logger,
-) ([]domain.Image, [][]string, []string) {
+) ([]domain.Image, [][]string, []string, int) {
 	results := make([]imageResult, 0, len(photos))
 	var mu sync.Mutex
 
@@ -281,7 +302,8 @@ func (uc *SyncRolls) analyzeImages(
 		tags = append(tags, t)
 	}
 	sort.Strings(tags)
-	return images, palettes, tags
+	skipped := len(photos) - len(results)
+	return images, palettes, tags, skipped
 }
 
 func (uc *SyncRolls) processImage(
@@ -316,11 +338,16 @@ func (uc *SyncRolls) processImage(
 		Poem:          photoPoems[file.Name],
 		Palette:       analysis.Palette,
 		DominantColor: analysis.DominantColor,
+		Width:         analysis.Width,
+		Height:        analysis.Height,
+		Orientation:   orientationFor(analysis.Width, analysis.Height),
 	}
 	if !analysis.Exif.IsZero() {
 		exif := analysis.Exif
 		img.Exif = &exif
+		img.Metadata = exif.Caption()
 	}
+	imgLogger.Info("image processed", slog.String("url", url))
 	return img, analysis.Palette, analysis.Tags, true
 }
 
@@ -332,6 +359,7 @@ type classifiedFiles struct {
 	images []domain.DriveFile
 	poetry *domain.DriveFile
 	audio  *domain.DriveFile
+	video  *domain.DriveFile
 }
 
 func classifyFiles(files []domain.DriveFile) classifiedFiles {
@@ -353,6 +381,11 @@ func classifyFiles(files []domain.DriveFile) classifiedFiles {
 				file := f
 				out.audio = &file
 			}
+		case ".mp4", ".webm", ".mov":
+			if out.video == nil {
+				file := f
+				out.video = &file
+			}
 		}
 	}
 	return out
@@ -366,6 +399,19 @@ func filterDirs(entries []domain.DriveFile) []domain.DriveFile {
 		}
 	}
 	return dirs
+}
+
+// orientationFor picks the front-end layout hint based on image dimensions.
+// Zero dimensions return an empty orientation so the front-end keeps its own
+// fallback.
+func orientationFor(w, h int) domain.Orientation {
+	if w == 0 || h == 0 {
+		return ""
+	}
+	if h > w {
+		return domain.OrientationPortrait
+	}
+	return domain.OrientationLandscape
 }
 
 func buildAltText(rollName string, exif domain.ExifData) string {
