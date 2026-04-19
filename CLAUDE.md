@@ -14,7 +14,29 @@ npm run preview      # Preview production build
 
 > `npm run dev` works without `.env` — it serves whatever content is already in `src/content/rolls/synced/`. Only `npm run sync` and `npm run build` require kDrive credentials.
 
-No test suite exists in this project.
+## Frontend tests
+
+Playwright e2e suite at `tests/e2e/` (cursor, immersive-features, index, roll, search, tags). Run with `npx playwright test`. `playwright.config.ts` auto-starts `npm run dev` after generating the search index.
+
+## Go Sync Script
+
+The kdrive-sync binary lives in `src/scripts/go/kdrive-sync/`. It uses `go run` (no compilation step needed).
+
+```bash
+# From repo root:
+go test -C src/scripts/go/kdrive-sync ./...          # Run Go tests
+golangci-lint run -C src/scripts/go/kdrive-sync      # Lint (uses .golangci.yml)
+# Or from src/scripts/go/kdrive-sync/ :
+make test-race        # race detector
+make test-coverage    # coverage.html + total %
+make test-watch       # ginkgo watch -r
+```
+
+Architecture: `cmd/` → `pkg/usecase/` → `pkg/infrastructure/*` → `pkg/domain/`
+
+Tests: table-driven (`t.Run`) for pure packages (`pkg/domain/slug`, `paletteaggregator`, `poetryparser`, `rollwriter`, `searchindexwriter`, `imageanalyzer`); Ginkgo v2 + Gomega BDD for orchestration / HTTP (`pkg/usecase`, `pkg/infrastructure/kdriveapi`, `filelister`, `filedownloader`, `sharepublisher`). Shared fakes live in `pkg/service/servicefakes/` (thread-safe, Stub + Results + Calls pattern). godog + go-rod e2e suite at `src/scripts/go/kdrive-sync/e2e/` drives the Astro frontend and is excluded from the unit CI run (`go list ./... | grep -v /e2e`).
+
+CI gate: `go test -race -coverprofile -coverpkg=./pkg/...` with a ≥ 70% total threshold (`.github/workflows/ci.yml`).
 
 ## Required Environment Variables
 
@@ -31,9 +53,9 @@ KDRIVE_FOLDER_ID=   # ID of the root folder containing Roll sub-folders
 
 ```
 kDrive API
-  └─ src/scripts/fetch-kdrive.ts  (npm run sync)
+  └─ src/scripts/go/kdrive-sync/  (npm run sync — Go binary)
        ├─ fetches folder list, downloads images for EXIF + palette extraction
-       ├─ reads .md poetry files inside kDrive folders (or src/data/poetry/)
+       ├─ reads .md poetry files inside kDrive folders
        └─ writes → src/content/rolls/synced/*.md  (one file per Roll)
                  → public/search-index.json
 

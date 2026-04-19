@@ -1,42 +1,42 @@
-# Marvelous journal of a wanderer - Portfolio de Photographie de Rue
+# Marvelous journal of a wanderer - Street Photography Portfolio
 
-Un portfolio photographique minimaliste, performant et artistique, conçu avec **Astro**.
-Il repose sur une architecture "Zéro Stockage" (les images restent sur votre kDrive) et offre une expérience utilisateur premium (animations cinématiques, fond coloré adaptatif, paysage sonore).
+A minimalist, performant and artistic photo portfolio, built with **Astro**.
+It is based on a "Zero Storage" architecture (images stay on your kDrive) and delivers a premium user experience (cinematic animations, adaptive colored background, soundscape).
 
-## 🚀 Démarrage rapide (Local)
+## Quick start (Local)
 
-1. Clonez ce dépôt.
-2. Installez les dépendances : `npm install`
-3. Créez un fichier `.env` à la racine (voir *Configuration kDrive* ci-dessous).
-4. Lancez le serveur de développement : `npm run dev` (Astro affichera les photos locales de test si l'API n'est pas configurée).
+1. Clone this repository.
+2. Install dependencies: `npm install`
+3. Create a `.env` file at the root (see *kDrive configuration* below).
+4. Start the dev server: `npm run dev` (Astro will display local test photos if the API is not configured).
 
-## ☁️ Configuration kDrive (La source des images)
+## kDrive configuration (The image source)
 
-Ce site ne stocke **aucune** photo lourde. Il génère des URLs vers vos fichiers kDrive.
+This site stores **no** heavy photos. It generates URLs pointing to your kDrive files.
 
-1. Allez sur votre console **Infomaniak** et générez un Token API kDrive.
-2. Repérez l'ID de votre Drive et l'ID du dossier racine contenant vos "Rolls" (balades).
-3. Renommez le fichier `.env.example` en `.env` et remplissez vos identifiants :
+1. Go to your **Infomaniak** console and generate a kDrive API token.
+2. Locate your Drive ID and the ID of the root folder containing your "Rolls" (walks).
+3. Rename the `.env.example` file to `.env` and fill in your credentials:
    ```env
-   KDRIVE_API_TOKEN=votre_cle_api_ici
-   KDRIVE_DRIVE_ID=votre_drive_id_ici
-   KDRIVE_FOLDER_ID=votre_folder_id_racine_ici
+   KDRIVE_API_TOKEN=your_api_key_here
+   KDRIVE_DRIVE_ID=your_drive_id_here
+   KDRIVE_FOLDER_ID=your_root_folder_id_here
    ```
 
-**Structure attendue sur kDrive :**
-- `Dossier Racine (KDRIVE_FOLDER_ID)`
-  - `Balade à Paris` (Ce sera le titre du Roll)
+**Expected kDrive structure:**
+- `Root folder (KDRIVE_FOLDER_ID)`
+  - `Walk in Paris` (This will be the Roll title)
     - `photo1.jpg`
     - `photo2.jpg`
-  - `Néons de Nuit`
+  - `Night neons`
     - `DSCF1234.jpg`
 
-## 🖋️ Ajouter de la Poésie
+## Adding poetry
 
-Vous pouvez associer des textes à vos sessions (Rolls) ou à des photos spécifiques.
-Allez dans le dossier `src/data/poetry/` et créez un fichier `.md` portant le nom "slugifié" de votre dossier kDrive (ex: si le dossier s'appelle "Balade à Paris", créez `balade-a-paris.md`).
+You can associate texts with your sessions (Rolls) or with specific photos.
+Go to the `src/data/poetry/` folder and create a `.md` file with the "slugified" name of your kDrive folder (e.g. if the folder is called "Walk in Paris", create `walk-in-paris.md`).
 
-**Syntaxe du fichier poétique :**
+**Poetry file syntax:**
 ```markdown
 ---
 photos:
@@ -44,40 +44,39 @@ photos:
     Les néons ne pleurent jamais,
     Ils saignent de la lumière.
 ---
-Ceci est le poème global qui s'affichera sous le titre de la balade.
+This is the global poem that will be displayed under the walk title.
 ```
-*Ces textes survivront aux synchronisations kDrive et s'afficheront au "clic/survol" des images sur le site.*
+*These texts will survive kDrive synchronizations and will be shown on image click/hover on the site.*
 
-## 🎵 Ajouter l'ambiance sonore
+## Adding ambient audio
 
-1. Trouvez un fichier audio libre de droits (ex: bruit de ville, pluie, drone musical) au format `.mp3`.
-2. Nommez-le **`ambiance-rue.mp3`**.
-3. Placez-le dans le dossier `public/` à la racine du projet.
-4. L'icône de son dans le menu flottant permettra aux visiteurs de l'activer/désactiver.
+1. Find a royalty-free audio file (e.g. city noise, rain, musical drone) in `.mp3` format.
+2. Name it **`ambiance-rue.mp3`**.
+3. Place it in the `public/` folder at the project root.
+4. The sound icon in the floating menu lets visitors toggle it on/off.
 
-## 🛠️ Le Processus de Build (Déploiement)
+## The build process (Deployment)
 
-Lorsque vous (ou votre hébergeur comme Vercel/Netlify) lancez la commande de génération du site :
+When you (or your host such as Vercel/Netlify) run the site generation command:
 ```bash
 npm run build
 ```
-Voici ce qu'il se passe automatiquement :
-1. Le script `fetch-kdrive.ts` se connecte à Infomaniak.
-2. Il scanne vos dossiers, extrait les **mots-clés (tags)** et les **données de l'appareil (EXIF)** de chaque photo.
-3. Il lit vos poèmes locaux (`src/data/poetry/`).
-4. Il génère les données pour Astro et Astro compile un site HTML/CSS ultra-rapide.
+Here's what happens automatically:
+1. The Go program `kdrive-sync` connects to Infomaniak.
+2. It scans your folders, extracts **keywords (tags)** and **camera data (EXIF)** from each photo.
+3. It reads your local poems (`src/data/poetry/`).
+4. It generates the data for Astro and Astro compiles an ultra-fast HTML/CSS site.
 
-## 🎨 Fonctionnalités de Design & Immersion
-- **Système Aura 2.0 :** Un moteur d'ambiance dynamique qui extrait les couleurs des photos pour créer un éclairage immersif fluide et persistant.
-- **Performance GPU :** Animations optimisées via `translate3d` et `will-change` pour un rendu à 60fps constant.
-- **Transition:Persist :** L'interface (Aura, Navigation, Audio) persiste entre les pages pour une expérience sans coupure.
-- **Splash Screen :** Animation cinématique d'introduction à la première visite.
-- **Glassmorphism :** Menu flottant et overlays de métadonnées en verre dépoli (20px blur).
-- **View Transitions :** Navigation fluide via Astro ClientRouter avec Color-Lock matériel.
-- **Grain global :** Texture SVG dynamique imitant le grain de pellicule cinématographique.
+## Design & immersion features
+- **Aura 2.0 system:** A dynamic ambience engine that extracts colors from photos to create smooth, persistent immersive lighting.
+- **GPU performance:** Animations optimized via `translate3d` and `will-change` for a consistent 60fps rendering.
+- **Transition:Persist:** The interface (Aura, Navigation, Audio) persists across pages for a seamless experience.
+- **Splash Screen:** Cinematic intro animation on the first visit.
+- **Glassmorphism:** Floating menu and metadata overlays in frosted glass (20px blur).
+- **View Transitions:** Smooth navigation via Astro ClientRouter with hardware Color-Lock.
+- **Global grain:** Dynamic SVG texture mimicking cinematic film grain.
 
-## 🛠️ Optimisations Techniques (Pickle Rick Edition)
-- **Zéro Fuite Mémoire :** Délégation d'événements et nettoyage automatique des listeners sur tout le projet.
-- **Cache de Palette :** Évite les manipulations DOM redondantes pour un gain de CPU immédiat.
-- **Race Condition Zero :** Synchronisation robuste des timers de navigation et des transitions d'état.
-
+## Technical optimizations (Pickle Rick Edition)
+- **Zero memory leaks:** Event delegation and automatic listener cleanup across the whole project.
+- **Palette cache:** Avoids redundant DOM manipulations for an immediate CPU gain.
+- **Race condition zero:** Robust synchronization of navigation timers and state transitions.

@@ -1,30 +1,30 @@
 # Marvelous Journal of a Wanderer - Engineering Guide
 
-Ce document sert de guide de bord pour le développement et la maintenance du portfolio photographique. Il documente les choix architecturaux et les spécificités techniques du projet.
+This document serves as an onboard guide for the development and maintenance of the photo portfolio. It documents the architectural choices and technical specifics of the project.
 
-## 1. Philosophie "Zéro Stockage"
-Le projet est conçu pour ne stocker aucune image localement (hormis le favicon). 
-- **Source** : Les photos sont hébergées sur un kDrive (Infomaniak).
-- **Synchronisation** : Le script `src/scripts/fetch-kdrive.ts` récupère les URLs publiques et les métadonnées (EXIF, Tags, Palette).
-- **Rendu** : Astro génère des pages statiques à partir de fichiers Markdown situés dans `src/content/rolls/`.
+## 1. "Zero Storage" philosophy
+The project is designed to store no image locally (apart from the favicon).
+- **Source**: Photos are hosted on a kDrive (Infomaniak).
+- **Sync**: The Go program `src/scripts/go/kdrive-sync/` retrieves public URLs and metadata (EXIF, tags, palette via k-means CIELAB).
+- **Rendering**: Astro generates static pages from Markdown files located in `src/content/rolls/`.
 
-## 2. Système "Aura" (Ambiance Dynamique)
-Le site utilise un système de couleurs immersives qui s'adapte au contenu.
-- **Extraction** : Via `node-vibrant`, nous extrayons une palette de 5 couleurs par image.
-- **Affichage** : Le `Layout.astro` contient 5 sphères de lumière (`.aura-blob`) dont les couleurs (`--p1` à `--p5`) sont mises à jour via JavaScript lors du scroll ou du survol.
-- **Contraste** : La couleur du texte (`--text-main`, `--text-muted`) bascule automatiquement du blanc au noir si la luminance moyenne de la palette dépasse 0.38.
+## 2. "Aura" system (Dynamic ambience)
+The site uses an immersive color system that adapts to the content.
+- **Extraction**: Via k-means clustering in CIELAB space, we extract a palette of 5 colors per image (Go sync).
+- **Display**: `Layout.astro` contains 5 spheres of light (`.aura-blob`) whose colors (`--p1` through `--p5`) are updated via JavaScript on scroll or hover.
+- **Contrast**: The text color (`--text-main`, `--text-muted`) automatically switches from white to black if the average palette luminance exceeds 0.38.
 
-## 3. Conventions de Développement
-- **Styles** : Utilisation de variables CSS et de l'API `@property` pour des transitions fluides. Les styles globaux de l'index sont dans `is:global` pour supporter les `ViewTransitions`.
-- **Navigation** : Les transitions entre pages sont gérées par `ClientRouter`. L'audio utilise `transition:persist` pour ne pas être interrompu.
-- **Images** : Utilisation de la balise `<img>` native avec `loading="lazy"` et `decoding="async"` pour les images distantes afin d'éviter les erreurs de calcul de dimensions côté serveur.
+## 3. Development conventions
+- **Styles**: Use of CSS variables and the `@property` API for smooth transitions. The global index styles are in `is:global` to support `ViewTransitions`.
+- **Navigation**: Transitions between pages are handled by `ClientRouter`. The audio uses `transition:persist` so it is not interrupted.
+- **Images**: Use of the native `<img>` tag with `loading="lazy"` and `decoding="async"` for remote images to avoid server-side dimension computation errors.
 
-## 4. Ajout de Contenu
-1. Créer un dossier sur kDrive avec le nom de la balise (ex: "Nuit à Tokyo").
-2. Y placer les photos JPEG (taguées avec vos mots-clés dans Lightroom).
-3. Optionnel : Créer un fichier `src/data/poetry/[slug].md` pour ajouter des textes poétiques par photo.
-4. Lancer `npm run sync` pour générer les fichiers de contenu Astro.
+## 4. Adding content
+1. Create a folder on kDrive with the tag name (e.g. "Nuit à Tokyo").
+2. Drop JPEG photos inside (tagged with your keywords in Lightroom).
+3. Optional: Create a `src/data/poetry/[slug].md` file to add poetic texts per photo.
+4. Run `npm run sync` to generate the Astro content files.
 
 ## 5. Maintenance
-- **Scripts** : `src/scripts/utils/` contient les fonctions partagées pour les calculs de couleurs.
-- **Catégories** : Modifiables dans `src/data/categories.ts`.
+- **Scripts**: `src/scripts/utils/` contains the shared helpers for color computations.
+- **Categories**: Editable in `src/data/categories.ts`.
