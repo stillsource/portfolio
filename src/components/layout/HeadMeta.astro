@@ -1,0 +1,86 @@
+---
+import { ClientRouter } from 'astro:transitions';
+
+interface PreloadImage {
+  url: string;
+  srcset?: string;
+  sizes?: string;
+}
+
+interface Props {
+  title: string;
+  description: string;
+  canonicalUrl: string;
+  ogImage: string;
+  ogType: string;
+  jsonLd?: object;
+  preloadImage?: PreloadImage;
+}
+
+const { title, description, canonicalUrl, ogImage, ogType, jsonLd, preloadImage } = Astro.props;
+---
+<meta charset="UTF-8" />
+<!-- Anti-FOUC: applies the theme before the first render -->
+<script is:inline>
+  (function() {
+    var stored = localStorage.getItem('theme-preference');
+    var sys = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', stored || sys);
+  })();
+</script>
+<!-- Workaround: Astro 6.1.1's ClientRouter calls Element.moveBefore(html, div, null)
+     when persisting elements across View Transitions, which Chromium rejects
+     ("invalid hierarchy") because <html> can only contain <head>/<body>.
+     Removing the method forces Astro onto its appendChild fallback, which
+     browsers tolerate. Without this, the first navigation between roll pages
+     fails silently: after-swap never fires and the aura palette doesn't
+     refresh on the destination roll. -->
+<script is:inline>
+  if (typeof Element !== 'undefined' && Element.prototype.moveBefore) {
+    try { delete Element.prototype.moveBefore; } catch (_) { /* non-configurable */ }
+  }
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<meta name="generator" content={Astro.generator} />
+<title>{title}</title>
+
+<!-- SEO / Meta Tags -->
+<meta name="description" content={description} />
+<link rel="canonical" href={canonicalUrl} />
+<meta property="og:type" content={ogType} />
+<meta property="og:url" content={canonicalUrl} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:image" content={ogImage} />
+<meta property="og:locale" content="fr_FR" />
+<meta property="og:site_name" content="Marvelous journal of a wanderer" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={ogImage} />
+{jsonLd && (
+  <script
+    is:inline
+    type="application/ld+json"
+    set:html={JSON.stringify(jsonLd)
+      .replace(/</g, '\\u003c')
+      .replace(/>/g, '\\u003e')
+      .replace(/&/g, '\\u0026')
+      .replace(/\u2028/g, '\\u2028')
+      .replace(/\u2029/g, '\\u2029')}
+  />
+)}
+
+{preloadImage && (
+  <link
+    rel="preload"
+    as="image"
+    href={preloadImage.url}
+    imagesrcset={preloadImage.srcset}
+    imagesizes={preloadImage.sizes}
+    fetchpriority="high"
+  />
+)}
+
+<ClientRouter />

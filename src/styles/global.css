@@ -1,0 +1,236 @@
+:root {
+  --bg-base: #050505;
+  --text-main: #f0f0f0;
+  --text-muted: #888888;
+  --accent: #ffffff;
+
+  /* Palette variables */
+  --p1: #050505;
+  --p2: #050505;
+  --p3: #050505;
+  --p4: #050505;
+  --p5: #050505;
+  --aura-opacity: 0.25;
+}
+
+/* Houdini API for smooth transitions */
+@property --p1 { syntax: '<color>'; initial-value: #050505; inherits: true; }
+@property --p2 { syntax: '<color>'; initial-value: #050505; inherits: true; }
+@property --p3 { syntax: '<color>'; initial-value: #050505; inherits: true; }
+@property --p4 { syntax: '<color>'; initial-value: #050505; inherits: true; }
+@property --p5 { syntax: '<color>'; initial-value: #050505; inherits: true; }
+@property --bg-base { syntax: '<color>'; initial-value: #050505; inherits: true; }
+@property --text-main { syntax: '<color>'; initial-value: #f0f0f0; inherits: true; }
+@property --text-muted { syntax: '<color>'; initial-value: #888888; inherits: true; }
+@property --accent { syntax: '<color>'; initial-value: #ffffff; inherits: true; }
+@property --aura-opacity { syntax: '<number>'; initial-value: 0.25; inherits: true; }
+
+/* Light mode */
+:root[data-theme="light"] {
+  --bg-base: #f2f0eb;
+  --text-main: #1a1a1a;
+  --text-muted: #666666;
+  --accent: #000000;
+  --aura-opacity: 0.12;
+}
+
+/* Prevent FOIT — text visible immediately with system fallback */
+@font-face { font-display: swap; }
+
+/* Screen-reader utility — visually hidden but accessible */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-base);
+  color: var(--text-main);
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
+  transition: background-color 2s ease, color 2s ease;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* The aura composed of independent spheres of light */
+.bg-aura {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-color: var(--bg-base);
+  overflow: hidden;
+  pointer-events: none;
+  transition: background-color 2s ease;
+}
+
+.aura-blob {
+  position: absolute;
+  width: 80vmax;
+  height: 80vmax;
+  filter: blur(120px);
+  border-radius: 50%;
+  opacity: var(--aura-opacity);
+  mix-blend-mode: screen;
+  transition:
+    background-color 3s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 3s ease;
+  /* Only the transform is continuously animated — hinting that alone is enough
+     to get the blob on its own compositor layer without bloating memory. */
+  will-change: transform;
+}
+
+/* Mobile: smaller + less intense blur. 5 × 80vmax filter:blur(120px) layers
+   thrash low-end GPUs otherwise. */
+@media (max-width: 768px) {
+  .aura-blob {
+    width: 60vmax;
+    height: 60vmax;
+    filter: blur(80px);
+  }
+}
+
+/* Disable transitions during Color-Lock to prevent any residual flicker */
+:root[data-aura-locked] .aura-blob {
+  transition: none !important;
+}
+
+/* Audio-reactive pulse — updated directly by JS, no transition */
+.aura-pulse {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, var(--p3) 0%, transparent 55%);
+  opacity: 0;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  transform: scale(0.5);
+  /* No transition: updated every frame by the audio analyser */
+  will-change: opacity, transform;
+}
+
+/* Drift positions and animations for each blob - GPU-optimized */
+.b1 { top: -20%; left: -20%; background-color: var(--p1); animation: drift1 45s infinite alternate ease-in-out; }
+.b2 { top: -25%; right: -25%; background-color: var(--p2); animation: drift2 38s infinite alternate ease-in-out; }
+.b3 { bottom: -20%; right: -20%; background-color: var(--p3); animation: drift3 50s infinite alternate ease-in-out; }
+.b4 { bottom: -25%; left: -25%; background-color: var(--p4); animation: drift4 42s infinite alternate ease-in-out; }
+.b5 { top: 25%; left: 25%; width: 60vmax; height: 60vmax; background-color: var(--p5); animation: drift5 55s infinite alternate ease-in-out; }
+
+@keyframes drift1 { 0% { transform: translate3d(0,0,0) scale(1) rotate(0deg); } 100% { transform: translate3d(10%, 15%, 0) scale(1.1) rotate(15deg); } }
+@keyframes drift2 { 0% { transform: translate3d(0,0,0) scale(1.1) rotate(0deg); } 100% { transform: translate3d(-15%, 10%, 0) scale(1) rotate(-12deg); } }
+@keyframes drift3 { 0% { transform: translate3d(0,0,0) scale(1) rotate(0deg); } 100% { transform: translate3d(-12%, -15%, 0) scale(1.1) rotate(10deg); } }
+@keyframes drift4 { 0% { transform: translate3d(0,0,0) scale(1.1) rotate(0deg); } 100% { transform: translate3d(15%, -10%, 0) scale(1) rotate(-8deg); } }
+@keyframes drift5 { 0% { transform: translate3d(0,0,0) scale(1) rotate(0deg); } 100% { transform: translate3d(-8%, 8%, 0) scale(1.15) rotate(20deg); } }
+
+/* --- ACCESSIBILITY: FORCED COLORS (Windows High Contrast) --- */
+@media (forced-colors: active) {
+  .bg-aura, .aura-blob, .aura-pulse, .noise-overlay {
+    display: none !important;
+  }
+  body {
+    background: Canvas !important;
+    color: CanvasText !important;
+  }
+  a {
+    color: LinkText !important;
+  }
+}
+
+/* --- ACCESSIBILITY: REDUCED MOTION --- */
+@media (prefers-reduced-motion: reduce) {
+  .aura-blob {
+    animation: none !important;
+    transition: background-color 1s ease !important;
+  }
+  .bg-aura {
+    transition: none !important;
+  }
+  .cursor-dot {
+    display: none !important;
+  }
+  body {
+    cursor: auto !important;
+  }
+}
+
+/* Ensure content sits on top */
+main, nav, footer, .nav-container {
+  position: relative;
+  z-index: 10;
+  transition: opacity 1s ease, transform 1s ease;
+}
+
+/* --- CHAMBRE NOIRE MODE --- */
+body.chambre-noire main header,
+body.chambre-noire .nav-container,
+body.chambre-noire .filter-section,
+body.chambre-noire .journal-caption,
+body.chambre-noire .thought-fragment,
+body.chambre-noire .next-roll-footer {
+  opacity: 0 !important;
+  pointer-events: none;
+  transform: translateY(10px);
+}
+
+body.chambre-noire .bg-aura {
+  opacity: 0.15 !important; /* Dim the aura even further */
+}
+
+.noise-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 16000;
+  pointer-events: none;
+  opacity: 0.05;
+}
+
+/* ── Photo flash on navigation ── */
+#photo-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 14000;
+  background: #fff8f0;
+  opacity: 0;
+  pointer-events: none;
+}
+#photo-flash.is-flashing {
+  animation: camera-flash 0.65s cubic-bezier(0.25, 0, 0.6, 1) forwards;
+}
+@keyframes camera-flash {
+  0%   { opacity: 0; }
+  3%   { opacity: 0.82; }
+  18%  { opacity: 0.18; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #photo-flash { display: none; }
+}
+
+/* ── Reading progress bar ── */
+#read-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 0%;
+  background: var(--accent);
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}

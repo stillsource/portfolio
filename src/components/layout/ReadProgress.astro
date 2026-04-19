@@ -1,0 +1,34 @@
+---
+// Reading progress bar — only visible on roll pages (presence of
+// `.roll-images`). Re-initialises on every Astro navigation.
+---
+<div id="read-progress" aria-hidden="true"></div>
+
+<script>
+  let progressScrollHandler: (() => void) | null = null;
+
+  function setupReadProgress() {
+    const bar = document.getElementById('read-progress');
+    if (!bar) return;
+
+    if (progressScrollHandler) {
+      window.removeEventListener('scroll', progressScrollHandler);
+      progressScrollHandler = null;
+    }
+
+    const isRollPage = !!document.querySelector('.roll-images');
+    bar.style.opacity = isRollPage ? '1' : '0';
+    bar.style.width = '0%';
+    if (!isRollPage) return;
+
+    progressScrollHandler = () => {
+      const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+      if (scrollable <= 0) return;
+      bar.style.width = Math.min(100, (window.scrollY / scrollable) * 100) + '%';
+    };
+    window.addEventListener('scroll', progressScrollHandler, { passive: true });
+    progressScrollHandler();
+  }
+
+  document.addEventListener('astro:page-load', setupReadProgress);
+</script>

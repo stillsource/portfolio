@@ -1,0 +1,60 @@
+---
+// Ambient visual chrome that survives View Transitions: aura blobs, noise
+// overlay, camera flash. The accompanying script owns Color-Lock timing and
+// the palette hand-off between roll pages.
+---
+<div class="bg-aura" transition:persist="aura-container" aria-hidden="true">
+  <div class="aura-blob b1"></div>
+  <div class="aura-blob b2"></div>
+  <div class="aura-blob b3"></div>
+  <div class="aura-blob b4"></div>
+  <div class="aura-blob b5"></div>
+  <div class="aura-pulse" id="aura-pulse"></div>
+</div>
+<svg class="noise-overlay" aria-hidden="true">
+  <filter id="noise">
+    <feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="3" stitchTiles="stitch" seed="42" />
+  </filter>
+  <rect width="100%" height="100%" filter="url(#noise)"></rect>
+</svg>
+<div id="photo-flash" aria-hidden="true"></div>
+
+<script>
+  import { setAuraLock, resetColorCache, applyThemeColors } from '../../scripts/utils/colors';
+  import { playFilmAdvance } from '../../scripts/utils/audio';
+
+  let _userClickedNav = false;
+  document.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).closest('a[href]')) _userClickedNav = true;
+  }, { capture: true });
+
+  document.addEventListener('astro:before-preparation', () => {
+    setAuraLock(true);
+    playFilmAdvance();
+    if (_userClickedNav && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.getElementById('photo-flash')?.classList.add('is-flashing');
+    }
+    _userClickedNav = false;
+  });
+
+  document.addEventListener('astro:after-swap', () => {
+    document.getElementById('photo-flash')?.classList.remove('is-flashing');
+    window.scrollTo(0, 0);
+    document.body.classList.remove('is-transitioning');
+
+    // Apply the new roll's palette immediately (before unlock) to prevent the
+    // aura from keeping the previous roll's colors throughout the transition.
+    const rollImages = document.querySelector('.roll-images');
+    const paletteStr = (rollImages as HTMLElement | null)?.dataset.rollPalette;
+    if (paletteStr) {
+      try {
+        applyThemeColors(JSON.parse(paletteStr), true, true);
+      } catch { /* ignore */ }
+    }
+
+    resetColorCache();
+    requestAnimationFrame(() => {
+      setAuraLock(false);
+    });
+  });
+</script>
