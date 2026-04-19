@@ -31,3 +31,13 @@ pnpm-debug.log*
 
 # Go compiled binaries (never commit built artifacts)
 src/scripts/go/kdrive-sync/kdrive-sync
+
+# Go coverage output
+**/coverage.out
+
+# Playwright run output
+test-results/
+
+# Planning files (local only, not committed)
+conductor/
+docs/superpowers/
