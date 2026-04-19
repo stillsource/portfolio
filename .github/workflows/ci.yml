@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  go-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/scripts/go/kdrive-sync
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+          cache-dependency-path: src/scripts/go/kdrive-sync/go.sum
+      - name: Run Go tests (race + coverage, exclude e2e)
+        run: |
+          go test -race -coverprofile=coverage.out -covermode=atomic \
+            -coverpkg=./pkg/... \
+            $(go list ./... | grep -v /e2e)
+          go tool cover -func=coverage.out | tail -20
+      - name: Enforce coverage threshold (>= 70%)
+        run: |
+          pct=$(go tool cover -func=coverage.out | awk '/^total:/{print $3}' | tr -d '%')
+          awk -v p="$pct" 'BEGIN{ if (p+0 < 70) { printf "coverage %s%% below 70%% threshold\n", p; exit 1 } printf "coverage %s%% OK\n", p }'
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-coverage
+          path: src/scripts/go/kdrive-sync/coverage.out
+          retention-days: 14
+
+  astro-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+      - name: Astro Check
+        run: npm run astro check
