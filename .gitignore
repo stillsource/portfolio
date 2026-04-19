@@ -41,3 +41,7 @@ test-results/
 # Planning files (local only, not committed)
 conductor/
 docs/superpowers/
+
+# Agent skills — fetched content, reproducible from skills-lock.json
+.agents/
+skills/
