@@ -267,19 +267,19 @@ import Navbar from '../components/Navbar.astro';
 
     .reveal-on-scroll {
       opacity: 0;
-      transform: translateY(24px);
+      transform: translateY(18px);
       transition:
-        opacity 1.2s cubic-bezier(0.2, 0.8, 0.2, 1),
-        transform 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+        opacity 0.65s cubic-bezier(0.2, 0.8, 0.2, 1),
+        transform 0.65s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
     .reveal-on-scroll.is-visible {
       opacity: 1;
       transform: translateY(0);
     }
-    .stagger-1 { transition-delay: 120ms; }
-    .stagger-2 { transition-delay: 240ms; }
-    .stagger-3 { transition-delay: 400ms; }
-    .stagger-4 { transition-delay: 560ms; }
+    .stagger-1 { transition-delay: 60ms; }
+    .stagger-2 { transition-delay: 140ms; }
+    .stagger-3 { transition-delay: 220ms; }
+    .stagger-4 { transition-delay: 300ms; }
 
     @media (prefers-reduced-motion: reduce) {
       .reveal-on-scroll {

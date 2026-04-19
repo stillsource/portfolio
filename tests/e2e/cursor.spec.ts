@@ -61,11 +61,11 @@ test.describe('Custom cursor', () => {
     await firstRollLink.click();
     await page.waitForLoadState('networkidle');
 
-    // Re-enter the window
+    // Re-enter the window. After a navigation the cursor listeners are
+    // re-attached, so allow enough time for both the lerp to converge and the
+    // opacity transition (0.18s) to settle before asserting.
     await page.mouse.move(500, 500);
-    await page.waitForTimeout(150);
-
-    await expect(cursor).toHaveCSS('opacity', '1');
+    await expect(cursor).toHaveCSS('opacity', '1', { timeout: 3000 });
   });
 });
 

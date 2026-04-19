@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
 
-// Astro dev toolbar intercepts pointer events — we use evaluate() to dispatch
-// clicks on the search buttons (equivalent to a native JS click).
+// Dispatched through JS so the test stays robust against overlay regressions
+// (cursor-root mix-blend, noise-overlay, future z-index shifts, etc.). A
+// separate test below exercises the native pointer path end to end.
 const clickToggle = (page: import('@playwright/test').Page) =>
   page.evaluate(() => (document.getElementById('search-toggle') as HTMLButtonElement)?.click());
 
@@ -90,5 +91,19 @@ test.describe('Search', () => {
     const overlay = page.locator('#search-overlay');
     await expect(overlay).toHaveAttribute('role', 'dialog');
     await expect(overlay).toHaveAttribute('aria-modal', 'true');
+  });
+
+  test('native pointer click on the search button opens the modal without errors', async ({ page }) => {
+    const consoleErrors: string[] = [];
+    page.on('pageerror', (err) => consoleErrors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') consoleErrors.push(msg.text());
+    });
+
+    await page.locator('#search-toggle').click();
+
+    await expect(page.locator('#search-overlay')).toHaveClass(/is-open/, { timeout: 2000 });
+    await expect(page.locator('#search-input')).toBeVisible({ timeout: 2000 });
+    expect(consoleErrors, `console errors after search toggle: ${consoleErrors.join(' | ')}`).toEqual([]);
   });
 });

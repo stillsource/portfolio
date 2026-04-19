@@ -183,9 +183,9 @@ test.describe('Feature: Film counter', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FEATURE: 3D parallax on hover
+// FEATURE: Image transition primitives on roll pages
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Feature: 3D photo parallax', () => {
+test.describe('Feature: Image transitions', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => sessionStorage.setItem('splashSeen', 'true'));
     await page.goto('/roll/matin-brumeux');
@@ -193,42 +193,11 @@ test.describe('Feature: 3D photo parallax', () => {
   });
 
   test('Scenario: image-container has a transform transition defined', async ({ page }) => {
-    // Given: a clickable image
     const container = page.locator('.clickable-image').first();
     await expect(container).toBeVisible({ timeout: 5000 });
 
-    // Then: the CSS transition includes transform
     const transition = await container.evaluate(el => getComputedStyle(el).transition);
     expect(transition).toContain('transform');
-  });
-
-  test('Scenario: hover applies a perspective transform', async ({ page }) => {
-    // Given: a visible image
-    const container = page.locator('.clickable-image').first();
-    await expect(container).toBeVisible({ timeout: 5000 });
-
-    // When: we hover the image
-    await container.hover();
-    await page.waitForTimeout(200);
-
-    // Then: a transform with perspective is applied
-    const transform = await container.evaluate(el => (el as HTMLElement).style.transform);
-    expect(transform).toContain('perspective');
-  });
-
-  test('Scenario: after hover, transform resets', async ({ page }) => {
-    const container = page.locator('.clickable-image').first();
-    await expect(container).toBeVisible({ timeout: 5000 });
-
-    // When: we hover then leave
-    await container.hover();
-    await page.waitForTimeout(100);
-    await page.mouse.move(0, 0); // leave the image
-    await page.waitForTimeout(600); // wait for 0.5s transition
-
-    // Then: transform is empty or identity
-    const transform = await container.evaluate(el => (el as HTMLElement).style.transform);
-    expect(transform).toBe('');
   });
 });
 

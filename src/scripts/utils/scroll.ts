@@ -5,7 +5,14 @@
 /**
  * Default visibility threshold for scroll-based triggers.
  */
-export const REVEAL_THRESHOLD = 0.15;
+export const REVEAL_THRESHOLD = 0.08;
+
+/**
+ * Pre-trigger margin so elements reveal before they are fully in view —
+ * critical when the user scrolls fast, otherwise the transition plays below
+ * the fold and looks like the text is always missing.
+ */
+export const REVEAL_ROOT_MARGIN = '0px 0px 12% 0px';
 
 /**
  * Initializes the reveal observer for `.reveal-on-scroll` elements.
@@ -13,7 +20,7 @@ export const REVEAL_THRESHOLD = 0.15;
 export function initScrollReveal() {
   const observerOptions = {
     root: null,
-    rootMargin: '0px',
+    rootMargin: REVEAL_ROOT_MARGIN,
     threshold: REVEAL_THRESHOLD
   };
 

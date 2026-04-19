@@ -47,11 +47,15 @@ test.describe('Tag pages', () => {
     await page.goto('/tags/Nocturne');
     const rollsOnTagPage = await page.locator('.roll-section').count();
 
-    // Index: filter by "Nocturne"
+    // Index: filter by "Nocturne". Wait until the filter-section has faded in
+    // (~200 ms after the header reveals) so the click lands on an interactive
+    // button, not on a 0-opacity placeholder.
     await page.goto('/');
-    await expect(page.locator('.roll-item').first()).toHaveClass(/is-visible/, { timeout: 3000 });
-    await page.locator('.filter-btn[data-filter="Nocturne"]').click({ force: true });
-    await page.waitForTimeout(800);
+    await expect(page.locator('.filter-section')).toHaveClass(/is-visible/, { timeout: 3000 });
+    const nocturneBtn = page.locator('.filter-btn[data-filter="Nocturne"]');
+    await expect(nocturneBtn).toBeVisible();
+    await nocturneBtn.click();
+    await expect(nocturneBtn).toHaveAttribute('aria-pressed', 'true', { timeout: 1000 });
 
     const visibleOnIndex = await page.locator('.roll-item:not(.hidden)').count();
     expect(visibleOnIndex).toBe(rollsOnTagPage);

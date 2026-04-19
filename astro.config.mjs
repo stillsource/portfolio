@@ -8,6 +8,11 @@ const SITE_URL = process.env.SITE_URL || 'https://example.com';
 // https://astro.build/config
 export default defineConfig({
   site: SITE_URL,
+  // The dev toolbar overlays every page with a high-z-index host that swallows
+  // pointer events on transparent regions — clicks on the navbar search and
+  // theme toggle sporadically land on the toolbar instead. We don't need the
+  // toolbar for this project's workflow, so keep it off in dev.
+  devToolbar: { enabled: false },
   integrations: [
     sitemap(),
     AstroPWA({
