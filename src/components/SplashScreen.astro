@@ -1,12 +1,13 @@
 ---
 // SplashScreen.astro
-// Animation cinématique d'introduction
+// Cinematic intro animation
 ---
-<div id="splash-screen" class="splash-container">
+<div id="splash-screen" class="splash-container" role="dialog" aria-modal="true" aria-label="Introduction">
   <div class="splash-content">
     <h1 class="splash-brand">Marvelous journal of a wanderer</h1>
     <div class="splash-subtitle">Street Photography</div>
   </div>
+  <button id="splash-skip" class="splash-skip" aria-label="Passer l'introduction">Passer →</button>
 </div>
 
 <style>
@@ -24,7 +25,7 @@
     transition: transform 0.8s cubic-bezier(0.77, 0, 0.175, 1), opacity 0.5s ease; 
   }
 
-  /* État caché : on le sort de la vue ET on le rend transparent */
+  /* Hidden state: we push it out of view AND make it transparent */
   .splash-container.is-hidden {
     transform: translateY(-100%);
     opacity: 0;
@@ -58,6 +59,49 @@
     margin-top: 1rem;
   }
 
+  .splash-skip {
+    position: absolute;
+    bottom: 2.5rem;
+    right: 2.5rem;
+    background: none;
+    border: 1px solid rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.5);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    border-radius: 2px;
+    opacity: 0;
+    transition: opacity 0.4s ease, color 0.3s ease, border-color 0.3s ease;
+    /* pointer-events handled by JS — the button remains keyboard-focusable */
+  }
+  .splash-skip.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .splash-skip:hover {
+    color: rgba(255,255,255,0.9);
+    border-color: rgba(255,255,255,0.5);
+  }
+  .splash-skip:focus-visible {
+    outline: 2px solid rgba(255,255,255,0.8);
+    outline-offset: 4px;
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .splash-content {
+      animation: none !important;
+      opacity: 1;
+      transform: none;
+    }
+    .splash-container {
+      transition: none !important;
+    }
+  }
+
   @keyframes revealText {
     0% { opacity: 0; transform: translateY(20px); filter: blur(10px); }
     30% { opacity: 1; transform: translateY(0); filter: blur(0px); }
@@ -72,8 +116,9 @@
 
   function initSplash() {
     const splash = document.getElementById('splash-screen');
+    const skipBtn = document.getElementById('splash-skip') as HTMLButtonElement | null;
     if (!splash) return;
-    
+
     if (sessionStorage.getItem('splashSeen')) {
       splash.style.display = 'none';
       splash.classList.add('is-hidden');
@@ -84,18 +129,60 @@
     if (splashTimer) clearTimeout(splashTimer);
     if (hideTimer) clearTimeout(hideTimer);
 
-    splashTimer = setTimeout(() => {
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const dismiss = () => {
+      if (splashTimer) clearTimeout(splashTimer);
+      if (hideTimer) clearTimeout(hideTimer);
       splash.classList.add('is-hidden');
       sessionStorage.setItem('splashSeen', 'true');
+      splash.removeEventListener('keydown', trapFocus);
       window.dispatchEvent(new Event('splashFinished'));
-      
       hideTimer = setTimeout(() => {
         splash.style.display = 'none';
+        splash.setAttribute('aria-hidden', 'true');
       }, 800);
-    }, 2200);
+    };
+
+    // Trap Tab focus inside the splash so keyboard users can't tab into
+    // the hidden page content while the splash is up.
+    const trapFocus = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab' || !skipBtn) return;
+      e.preventDefault();
+      skipBtn.focus();
+    };
+
+    // Reduced motion: immediate dismiss, no animation
+    if (prefersReducedMotion) {
+      dismiss();
+      return;
+    }
+
+    // Focus the skip button immediately so keyboard users can dismiss
+    // even before the fade-in finishes.
+    splash.addEventListener('keydown', trapFocus);
+    skipBtn?.focus({ preventScroll: true });
+
+    // Reveal the skip button after 800ms (visual fade only — it is
+    // already focusable/focused for keyboard users).
+    splashTimer = setTimeout(() => {
+      skipBtn?.classList.add('is-visible');
+    }, 800);
+
+    // Auto-dismiss after 2200ms
+    hideTimer = setTimeout(dismiss, 2200);
+
+    // Keyboard: the button is always focusable, Enter/Space dismiss immediately
+    skipBtn?.addEventListener('click', dismiss);
+    skipBtn?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        dismiss();
+      }
+    });
   }
 
-  // Nettoyage si on navigue PENDANT le splash (peu probable mais possible)
+  // Cleanup if we navigate DURING the splash (unlikely but possible)
   document.addEventListener('astro:before-preparation', () => {
     if (splashTimer) clearTimeout(splashTimer);
     if (hideTimer) clearTimeout(hideTimer);

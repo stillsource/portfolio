@@ -1,23 +1,37 @@
 <div class="search-wrapper">
-  <button id="search-toggle" class="search-btn" aria-label="Rechercher">
+  <button id="search-toggle" class="search-btn" aria-label="Rechercher" aria-expanded="false" aria-controls="search-overlay">
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
   </button>
 
-  <div id="search-overlay" class="search-overlay">
+  <div id="search-overlay" class="search-overlay" role="dialog" aria-modal="true" aria-label="Recherche" aria-labelledby="search-input-label">
     <div class="search-modal">
       <header class="search-header">
+        <label id="search-input-label" for="search-input" class="sr-only">Rechercher dans le portfolio</label>
         <input type="text" id="search-input" placeholder="Rechercher un lieu, un tag, un souvenir..." autocomplete="off" />
-        <button id="search-close" class="close-btn">&times;</button>
+        <button id="search-close" class="close-btn" aria-label="Fermer la recherche">&times;</button>
       </header>
-      
-      <div id="search-results" class="search-results">
+
+      <div id="search-results" class="search-results" aria-live="polite" aria-atomic="false">
         <div class="search-placeholder">Commencez à taper pour explorer les fragments...</div>
       </div>
+      <span id="search-status" class="sr-only" aria-live="polite" aria-atomic="true"></span>
     </div>
   </div>
 </div>
 
 <style>
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border: 0;
+  }
+
   .search-wrapper {
     display: flex;
     align-items: center;
@@ -202,53 +216,107 @@
       overlay: document.getElementById('search-overlay'),
       close: document.getElementById('search-close'),
       input: document.getElementById('search-input') as HTMLInputElement,
-      results: document.getElementById('search-results')
+      results: document.getElementById('search-results'),
+      status: document.getElementById('search-status'),
     };
 
     if (!Object.values(els).every(Boolean)) return;
 
+    const getFocusableEls = () =>
+      Array.from(els.overlay!.querySelectorAll<HTMLElement>(
+        'button, input, a[href], [tabindex="0"]'
+      )).filter(el => !el.hasAttribute('disabled'));
+
+    const trapFocus = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const focusable = getFocusableEls();
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+
     const toggleOverlay = (open: boolean) => {
       els.overlay!.classList.toggle('is-open', open);
+      (els.toggle as HTMLElement | null)?.setAttribute('aria-expanded', String(open));
       document.body.style.overflow = open ? 'hidden' : '';
       if (open) {
+        els.overlay!.addEventListener('keydown', trapFocus);
         loadSearchIndex().then(() => els.input!.focus());
       } else {
+        els.overlay!.removeEventListener('keydown', trapFocus);
         els.input!.value = '';
         renderResults([]);
+        (els.toggle as HTMLElement)?.focus();
       }
     };
 
     const renderResults = (results: SearchIndexItem[]) => {
       if (!els.results) return;
-      
+
       if (results.length === 0) {
-        els.results.innerHTML = els.input!.value 
-          ? '<div class="search-placeholder">Aucun fragment trouvé pour cette quête...</div>'
-          : '<div class="search-placeholder">Commencez à taper pour explorer les fragments...</div>';
+        const msg = els.input!.value
+          ? 'Aucun fragment trouvé pour cette quête...'
+          : 'Commencez à taper pour explorer les fragments...';
+        const placeholder = document.createElement('div');
+        placeholder.className = 'search-placeholder';
+        placeholder.textContent = msg;
+        els.results.replaceChildren(placeholder);
+        if (els.status) els.status.textContent = els.input!.value ? 'Aucun résultat.' : '';
         return;
       }
 
-      els.results.innerHTML = results.map((res, i) => `
-        <div class="search-result-item" style="animation-delay: ${i * 0.05}s">
-          <a href="/roll/${res.id}" class="search-result-link result-trigger" data-palette='${JSON.stringify(res.palette || [])}'>
-            <div class="result-img-wrapper">
-              <img src="${res.cover}" alt="${res.title}" class="result-img" loading="lazy" />
-            </div>
-            <div class="result-info">
-              <span class="result-date">${new Date(res.date).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</span>
-              <span class="result-title">${res.title}</span>
-            </div>
-          </a>
-        </div>
-      `).join('');
+      if (els.status) els.status.textContent = `${results.length} résultat${results.length > 1 ? 's' : ''} trouvé${results.length > 1 ? 's' : ''}.`;
+
+      const fragment = document.createDocumentFragment();
+      results.forEach((res, i) => {
+        const item = document.createElement('div');
+        item.className = 'search-result-item';
+        item.style.animationDelay = `${i * 0.05}s`;
+
+        const link = document.createElement('a');
+        link.href = `/roll/${res.id}`;
+        link.className = 'search-result-link result-trigger';
+        link.dataset.palette = JSON.stringify(res.palette || []);
+
+        const imgWrapper = document.createElement('div');
+        imgWrapper.className = 'result-img-wrapper';
+        const img = document.createElement('img');
+        img.src = res.cover || '';
+        img.alt = res.title;
+        img.className = 'result-img';
+        img.loading = 'lazy';
+        imgWrapper.appendChild(img);
+
+        const info = document.createElement('div');
+        info.className = 'result-info';
+        const date = document.createElement('span');
+        date.className = 'result-date';
+        date.textContent = new Date(res.date).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+        const title = document.createElement('span');
+        title.className = 'result-title';
+        title.textContent = res.title;
+        info.appendChild(date);
+        info.appendChild(title);
+
+        link.appendChild(imgWrapper);
+        link.appendChild(info);
+        item.appendChild(link);
+        fragment.appendChild(item);
+      });
+      els.results.replaceChildren(fragment);
     };
 
-    // Navbar est transition:persist — on n'attache les listeners qu'une seule fois
+    // Navbar is transition:persist — attach listeners only once
     const resultsEl = els.results as HTMLElement & { __searchBound?: boolean };
     if (resultsEl.__searchBound) return;
     resultsEl.__searchBound = true;
 
-    // Délégation d'événements pour l'aura sur les résultats de recherche
+    // Event delegation for the aura on search results
     els.results!.addEventListener('mouseenter', (e) => {
       const trigger = (e.target as HTMLElement).closest('.result-trigger') as HTMLElement;
       if (trigger) {
@@ -263,8 +331,15 @@
       }
     }, true);
 
-    els.toggle!.addEventListener('click', () => toggleOverlay(true));
+    els.toggle!.addEventListener('click', () =>
+      toggleOverlay(!els.overlay!.classList.contains('is-open'))
+    );
     els.close!.addEventListener('click', () => toggleOverlay(false));
+
+    // Close when clicking the backdrop (outside the modal)
+    els.overlay!.addEventListener('click', (e) => {
+      if (e.target === els.overlay) toggleOverlay(false);
+    });
 
     els.input!.addEventListener('input', () => {
       const q = els.input!.value.toLowerCase().trim();
@@ -280,6 +355,11 @@
 
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && els.overlay!.classList.contains('is-open')) toggleOverlay(false);
+    });
+
+    // Close before any navigation (click on a result, external link, etc.)
+    document.addEventListener('astro:before-preparation', () => {
+      if (els.overlay!.classList.contains('is-open')) toggleOverlay(false);
     });
   }
 

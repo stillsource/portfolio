@@ -1,5 +1,5 @@
 /**
- * Dictionnaire de classification des tags pour le filtrage sur l'index.
+ * Tag classification dictionary used for filtering on the index.
  */
 export const CATEGORIES = {
   "Ambiance": ["Nocturne", "Matin", "Brume", "Golden Hour", "Froid", "Bleu", "Mélancolie", "Chaud", "Doux"],
@@ -9,11 +9,11 @@ export const CATEGORIES = {
 } as const;
 
 /**
- * Retourne la catégorie correspondante à un tag donné.
+ * Returns the category matching a given tag.
  */
 export function getTagCategory(tag: string): string {
   for (const [category, tags] of Object.entries(CATEGORIES)) {
     if ((tags as readonly string[]).includes(tag)) return category;
   }
-  return "Sujet"; // Catégorie par défaut
+  return "Sujet"; // Default category (UI label kept in French)
 }

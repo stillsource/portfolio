@@ -1,94 +1,226 @@
 ---
 // Roll.astro
-import type { RollData, ExifData } from '../types/content';
+import type { RollData } from '../types/content';
+import { formatExif } from '../scripts/utils/formatExif';
 
 export interface Props {
   title: string;
   poem?: string;
   dominantColor?: string;
   palette?: string[];
-  images: RollData['images']; 
+  images: RollData['images'];
+  poemAnimation?: 'scroll' | 'typewriter' | 'fade' | 'slide' | 'word' | 'blur' | 'random';
 }
-const { title, poem, dominantColor = '#050505', palette, images } = Astro.props;
+const { title, poem, dominantColor = '#050505', palette, images, poemAnimation = 'random' } = Astro.props;
+const isProd = import.meta.env.PROD;
+const vercelImg = (url: string, w: number) =>
+  isProd ? `/_vercel/image?url=${encodeURIComponent(url)}&w=${w}&q=80` : url;
 
-// Fallback robuste pour l'aura initiale
-const effectivePalette = palette && palette.length > 0 
-  ? palette 
+// Robust fallback for the initial aura
+const effectivePalette = palette && palette.length > 0
+  ? palette
   : (images[0]?.palette && images[0].palette.length > 0 ? images[0].palette : [dominantColor]);
 
-const formatExif = (exif?: ExifData, metadata?: string) => {
-  if (metadata) return metadata;
-  if (!exif) return '';
-  const parts = [];
-  if (exif.body) parts.push(exif.body);
-  if (exif.lens) parts.push(exif.lens);
-  if (exif.focalLength) parts.push(exif.focalLength);
-  if (exif.aperture) parts.push(exif.aperture);
-  if (exif.shutter) parts.push(exif.shutter);
-  if (exif.iso) parts.push(exif.iso);
-  return parts.join(' • ');
-};
+// Group images into singles and pairs (pair-left followed by pair-right)
+type ImageItem = RollData['images'][number];
+type ImageGroup =
+  | { type: 'single'; image: ImageItem; index: number }
+  | { type: 'pair'; left: ImageItem; right: ImageItem; leftIndex: number; rightIndex: number };
+
+const imageGroups: ImageGroup[] = [];
+{
+  let i = 0;
+  while (i < images.length) {
+    const img = images[i];
+    if (img.layout === 'pair-left' && images[i + 1]?.layout === 'pair-right') {
+      imageGroups.push({ type: 'pair', left: img, right: images[i + 1], leftIndex: i, rightIndex: i + 1 });
+      i += 2;
+    } else {
+      imageGroups.push({ type: 'single', image: img, index: i });
+      i++;
+    }
+  }
+}
 ---
 <section class="roll-section">
+  <div class="film-counter" id="film-counter" aria-hidden="true">
+    <span class="film-num" id="film-current">01</span>
+    <span class="film-sep"> — </span>
+    <span class="film-total">{imageGroups.length.toString().padStart(2, '0')}</span>
+  </div>
   <div class="roll-header reveal-on-scroll">
     <h2 class="roll-title">{title}</h2>
     {poem && <p class="roll-poem-global">{poem}</p>}
     <div class="roll-line"></div>
   </div>
   
-  <div class="roll-images" data-roll-palette={JSON.stringify(effectivePalette)}>
-    {images.map((img, index) => {
+  <div class="roll-images" data-roll-palette={JSON.stringify(effectivePalette)} data-poem-animation={poemAnimation}>
+    {imageGroups.map((group) => {
+      if (group.type === 'pair') {
+        const { left, right, leftIndex, rightIndex } = group;
+        const leftExif = formatExif(left.exif, left.metadata);
+        const rightExif = formatExif(right.exif, right.metadata);
+        return (
+          <div class="image-pair reveal-on-scroll">
+            {/* Left image */}
+            <div class="pair-item color-trigger" data-palette={JSON.stringify(left.palette || [dominantColor])}>
+              {left.poem && (
+                <div class="thought-fragment floating-thought pair-poem">{left.poem}</div>
+              )}
+              <div
+                class="image-container has-overlay clickable-image"
+                role="button"
+                tabindex="0"
+                aria-label={left.alt || `Ouvrir la photo ${leftIndex + 1} en plein écran`}
+                data-url={left.url}
+                data-exif={leftExif}
+                data-poem={left.poem || ''}
+                data-orientation={left.orientation}
+              >
+                <picture>
+                  {isProd && (
+                    <source
+                      type="image/avif"
+                      srcset={[400, 800].map(w => vercelImg(left.url, w) + ` ${w}w`).join(', ')}
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                    />
+                  )}
+                  <img
+                    src={vercelImg(left.url, 800)}
+                    alt={left.alt || `Photo du roll ${title}`}
+                    loading={leftIndex === 0 ? "eager" : "lazy"}
+                    decoding={leftIndex === 0 ? "sync" : "async"}
+                    fetchpriority={leftIndex === 0 ? "high" : undefined}
+                    width={left.width}
+                    height={left.height}
+                    class="styled-image"
+                    onerror="this.closest('.image-container').classList.add('img-error')"
+                  />
+                </picture>
+              </div>
+              {leftExif && (
+                <div class="journal-caption">
+                  <span class="caption-exif">{leftExif}</span>
+                </div>
+              )}
+            </div>
+            {/* Right image */}
+            <div class="pair-item color-trigger" data-palette={JSON.stringify(right.palette || [dominantColor])}>
+              {right.poem && (
+                <div class="thought-fragment floating-thought pair-poem">{right.poem}</div>
+              )}
+              <div
+                class="image-container has-overlay clickable-image"
+                role="button"
+                tabindex="0"
+                aria-label={right.alt || `Ouvrir la photo ${rightIndex + 1} en plein écran`}
+                data-url={right.url}
+                data-exif={rightExif}
+                data-poem={right.poem || ''}
+                data-orientation={right.orientation}
+              >
+                <picture>
+                  {isProd && (
+                    <source
+                      type="image/avif"
+                      srcset={[400, 800].map(w => vercelImg(right.url, w) + ` ${w}w`).join(', ')}
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                    />
+                  )}
+                  <img
+                    src={vercelImg(right.url, 800)}
+                    alt={right.alt || `Photo du roll ${title}`}
+                    loading="lazy"
+                    decoding="async"
+                    width={right.width}
+                    height={right.height}
+                    class="styled-image"
+                    onerror="this.closest('.image-container').classList.add('img-error')"
+                  />
+                </picture>
+              </div>
+              {rightExif && (
+                <div class="journal-caption">
+                  <span class="caption-exif">{rightExif}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      // Single image
+      const { image: img, index } = group;
       const exifString = formatExif(img.exif, img.metadata);
+      const sizeClass = img.size ? `size-${img.size}` : '';
       return (
-      <div 
-        class="image-wrapper reveal-on-scroll color-trigger" 
-        data-palette={JSON.stringify(img.palette || [dominantColor])}
-        data-color={img.dominantColor || dominantColor}
-      >
-        <div class="side-column left-col">
-          {img.poem && index % 2 === 0 && (
-            <div class="thought-fragment floating-thought left">
-              {img.poem}
-            </div>
-          )}
-        </div>
-
-        <div class="center-column">
-          <div 
-            class="image-container has-overlay clickable-image" 
-            data-url={img.url} 
-            data-exif={exifString} 
-            data-poem={img.poem || ''}
-          >
-             <img 
-               src={img.url} 
-               alt={`Photo du roll ${title}`} 
-               loading="lazy"
-               decoding="async"
-               class="styled-image"
-             />
-             
-             {(exifString || img.poem) && (
-               <div class="image-overlay">
-                 {/* L'overlay est conservé techniquement pour le curseur mais vidé de son contenu visuel intrusif */}
-               </div>
-             )}
+        <div
+          class={`image-wrapper reveal-on-scroll color-trigger ${sizeClass}`}
+          data-palette={JSON.stringify(img.palette || [dominantColor])}
+          data-color={img.dominantColor || dominantColor}
+        >
+          <div class="side-column left-col">
+            {img.poem && index % 2 === 0 && (
+              <div class="thought-fragment floating-thought left">
+                {img.poem}
+              </div>
+            )}
           </div>
-          
-          <div class="journal-caption">
-            {exifString && <span class="caption-exif">{exifString}</span>}
+
+          <div class="center-column">
+            <div
+              class="image-container has-overlay clickable-image"
+              role="button"
+              tabindex="0"
+              aria-label={img.alt || `Ouvrir la photo ${index + 1} en plein écran`}
+              data-url={img.url}
+              data-exif={exifString}
+              data-poem={img.poem || ''}
+              data-orientation={img.orientation}
+            >
+              <picture>
+                {isProd && (
+                  <source
+                    type="image/avif"
+                    srcset={[400, 800, 1200].map(w => vercelImg(img.url, w) + ` ${w}w`).join(', ')}
+                    sizes="(max-width: 768px) 100vw, 66vw"
+                  />
+                )}
+                <img
+                  src={vercelImg(img.url, 800)}
+                  alt={img.alt || `Photo du roll ${title}`}
+                  loading={index === 0 ? "eager" : "lazy"}
+                  decoding={index === 0 ? "sync" : "async"}
+                  fetchpriority={index === 0 ? "high" : undefined}
+                  width={img.width}
+                  height={img.height}
+                  class="styled-image"
+                  onerror="this.closest('.image-container').classList.add('img-error')"
+                />
+              </picture>
+
+              {(exifString || img.poem) && (
+                <div class="image-overlay">
+                  {/* Overlay kept for the cursor */}
+                </div>
+              )}
+            </div>
+
+            <div class="journal-caption">
+              {exifString && <span class="caption-exif">{exifString}</span>}
+            </div>
+          </div>
+
+          <div class="side-column right-col">
+            {img.poem && index % 2 !== 0 && (
+              <div class="thought-fragment floating-thought right">
+                {img.poem}
+              </div>
+            )}
           </div>
         </div>
-
-        <div class="side-column right-col">
-          {img.poem && index % 2 !== 0 && (
-            <div class="thought-fragment floating-thought right">
-              {img.poem}
-            </div>
-          )}
-        </div>
-      </div>
-    )})}
+      );
+    })}
   </div>
 </section>
 
@@ -145,6 +277,45 @@ const formatExif = (exif?: ExifData, metadata?: string) => {
     align-items: center;
   }
 
+  .image-wrapper.size-large  { max-width: 1200px; }
+  .image-wrapper.size-medium { max-width: 800px; grid-template-columns: 1fr minmax(auto, 600px) 1fr; }
+  .image-wrapper.size-small  { max-width: 500px; grid-template-columns: 1fr minmax(auto, 360px) 1fr; }
+
+  /* Side-by-side pairs */
+  .image-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    max-width: 1400px;
+    margin: 0 auto clamp(12rem, 30vw, 25rem);
+    padding: 0 2rem;
+    align-items: start;
+  }
+
+  .pair-item {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .thought-fragment.pair-poem {
+    text-align: center;
+    padding: 0;
+    font-size: clamp(0.9rem, 1.8vw, 1.3rem);
+    opacity: 0;
+    transition: opacity 1s ease;
+  }
+
+  .image-pair.is-visible .thought-fragment.pair-poem {
+    opacity: 0.7;
+  }
+
+  @media (max-width: 768px) {
+    .image-pair {
+      grid-template-columns: 1fr;
+    }
+  }
+
   .center-column {
     display: flex;
     flex-direction: column;
@@ -166,10 +337,57 @@ const formatExif = (exif?: ExifData, metadata?: string) => {
     color: var(--text-main);
     opacity: 0;
     pointer-events: none;
-    line-height: 1.4;
+    line-height: 1.5;
+    white-space: pre-line;
+    overflow-wrap: break-word;
+    hyphens: auto;
     will-change: transform, opacity;
     transition: opacity 1s ease;
   }
+
+  /* Fade animation: simple appearance via IntersectionObserver */
+  .thought-fragment.anim-fade {
+    transform: none;
+    transition: opacity 1.5s ease;
+  }
+
+  .thought-fragment.anim-fade.is-visible {
+    opacity: 0.75;
+  }
+
+  /* Typewriter animation: text is injected char-by-char by JS */
+  .thought-fragment.anim-typewriter {
+    transform: none;
+    transition: none;
+    min-height: 1.4em;
+  }
+
+  /* Slide animation: slides in from the edge depending on position */
+  .thought-fragment.anim-slide {
+    transition: opacity 0.9s ease, transform 0.9s ease;
+  }
+  .thought-fragment.anim-slide.left  { transform: translateX(25px); }
+  .thought-fragment.anim-slide.right { transform: translateX(-25px); }
+  .thought-fragment.anim-slide.pair-poem { transform: translateY(20px); }
+  .thought-fragment.anim-slide.is-visible { opacity: 0.75; transform: none; }
+
+  /* Word animation: words revealed one by one via JS spans */
+  .thought-fragment.anim-word { opacity: 1 !important; }
+  .thought-fragment.anim-word .poem-word {
+    opacity: 0;
+    display: inline-block;
+    transition: opacity 0.4s ease;
+    transition-delay: calc(var(--word-i) * 120ms);
+  }
+  .thought-fragment.anim-word.is-visible .poem-word { opacity: 0.75; }
+
+  /* Blur animation: blurred to sharp */
+  .thought-fragment.anim-blur {
+    filter: blur(10px);
+    transition: opacity 1.2s ease, filter 1.2s ease;
+  }
+  .thought-fragment.anim-blur.is-visible { opacity: 0.75; filter: blur(0); }
+
 
   .thought-fragment.left {
     text-align: right;
@@ -181,18 +399,103 @@ const formatExif = (exif?: ExifData, metadata?: string) => {
     padding-left: 2rem;
   }
 
+  .film-counter {
+    position: fixed;
+    right: 1.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    z-index: 100;
+    font-family: 'Inter', monospace;
+    font-size: 0.55rem;
+    letter-spacing: 0.2em;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+  }
+  .film-counter.is-active { opacity: 1; }
+  .film-num {
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    opacity: 0.9;
+  }
+  .film-sep { color: var(--text-muted); opacity: 0.4; }
+  .film-total { color: var(--text-muted); opacity: 0.5; }
+
+  @media (max-width: 1024px) { .film-counter { display: none; } }
+
   .image-container {
     position: relative;
     width: 100%;
     z-index: 2;
+    transition: transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+    will-change: transform;
   }
-  
+
+  /* Skeleton shimmer — removed as soon as the image finishes loading. */
+  .image-container:not(.loaded):not(.img-error)::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--text-muted) 10%, transparent) 0%,
+      color-mix(in srgb, var(--text-muted) 20%, transparent) 50%,
+      color-mix(in srgb, var(--text-muted) 10%, transparent) 100%
+    );
+    background-size: 200% 100%;
+    animation: roll-shimmer 1.8s infinite ease-in-out;
+    z-index: 1;
+    pointer-events: none;
+  }
+  @keyframes roll-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .image-container:not(.loaded):not(.img-error)::before { animation: none; }
+  }
+
+.image-container.img-error .styled-image {
+    display: none;
+  }
+
+  .image-container.img-error::after {
+    content: attr(aria-label);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    aspect-ratio: 3 / 2;
+    border: 1px solid color-mix(in srgb, var(--text-muted) 30%, transparent);
+    color: var(--text-muted);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.5;
+  }
+
   .styled-image {
     display: block;
     width: 100%;
     height: auto;
     object-fit: contain;
     box-shadow: 0 30px 60px rgba(0,0,0,0.3);
+    /* Film development: light blur → sharp in 0.7s */
+    filter: blur(3px) brightness(1.06) contrast(0.92) sepia(0.08);
+    transition: filter 0.7s ease-out;
+  }
+  .styled-image.developed {
+    filter: blur(0px) brightness(1) contrast(1) sepia(0);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .styled-image { filter: none; transition: none; }
   }
 
   .journal-caption {
@@ -223,7 +526,7 @@ const formatExif = (exif?: ExifData, metadata?: string) => {
       max-width: 1000px;
     }
     .side-column {
-      order: -1; /* Les pensées passent au dessus sur petit écran */
+      order: -1; /* Thoughts sit on top on small screens */
       min-width: auto;
     }
     .thought-fragment {
@@ -245,24 +548,14 @@ const formatExif = (exif?: ExifData, metadata?: string) => {
   }
 
   .has-overlay:hover .image-overlay { opacity: 1; }
-
-  .reveal-on-scroll {
-    opacity: 0;
-    transform: translateY(40px);
-    transition: opacity 1s cubic-bezier(0.2, 0.8, 0.2, 1), 
-                transform 1s cubic-bezier(0.2, 0.8, 0.2, 1);
-    will-change: opacity, transform;
-  }
-
-  .reveal-on-scroll.is-visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
 </style>
 
 <script>
   import { applyThemeColors } from '../scripts/utils/colors';
   import { REVEAL_THRESHOLD } from '../scripts/utils/scroll';
+  import { pickAnimation } from '../scripts/animations/poemAnimations';
+  import { playViewportTone } from '../scripts/utils/audio';
+  import { haptics } from '../scripts/utils/haptics';
 
   let currentCleanup: (() => void) | null = null;
 
@@ -280,7 +573,7 @@ const formatExif = (exif?: ExifData, metadata?: string) => {
       applyThemeColors(initialPalette, true, true); // Force update
     }
 
-    // Nettoyage de l'instance précédente si elle existe
+    // Clean up the previous instance if any
     if (currentCleanup) {
       currentCleanup();
       currentCleanup = null;
@@ -303,42 +596,177 @@ const formatExif = (exif?: ExifData, metadata?: string) => {
 
     colorTriggers.forEach(t => colorObserver.observe(t));
 
-    const handleScroll = () => {
-      const vh = window.innerHeight;
-      
-      floatingThoughts.forEach(thought => {
-        const rect = thought.getBoundingClientRect();
-        const elementCenter = rect.top + rect.height / 2;
-        const distanceFromCenter = (elementCenter - vh / 2) / (vh / 2);
-        
-        if (rect.top < vh && rect.bottom > 0) {
-          const yOffset = distanceFromCenter * -80; 
-          const opacity = 1 - Math.abs(distanceFromCenter) * 1.8;
-          
-          (thought as HTMLElement).style.transform = `translate3d(0, ${yOffset}px, 0)`;
-          (thought as HTMLElement).style.opacity = Math.max(0, Math.min(0.6, opacity)).toString();
-        }
+    const poemAnimation = (rollContainer as HTMLElement).dataset.poemAnimation || 'random';
+
+    let cleanupPoems: (() => void) | null = null;
+
+    if (poemAnimation === 'scroll') {
+      // Scroll mode (parallax): driven by position rather than the IO.
+      const handleScroll = () => {
+        const vh = window.innerHeight;
+
+        floatingThoughts.forEach(thought => {
+          const rect = thought.getBoundingClientRect();
+          const elementCenter = rect.top + rect.height / 2;
+          const distanceFromCenter = (elementCenter - vh / 2) / (vh / 2);
+
+          if (rect.top < vh && rect.bottom > 0) {
+            const yOffset = distanceFromCenter * -80;
+            const opacity = 1 - Math.abs(distanceFromCenter) * 1.1;
+
+            (thought as HTMLElement).style.transform = `translate3d(0, ${yOffset}px, 0)`;
+            (thought as HTMLElement).style.opacity = Math.max(0, Math.min(0.75, opacity)).toString();
+          }
+        });
+      };
+
+      window.addEventListener('scroll', handleScroll, { passive: true });
+      handleScroll();
+
+      cleanupPoems = () => window.removeEventListener('scroll', handleScroll);
+
+    } else {
+      // Registry modes (random or specific animation)
+      const origTexts = new Map<Element, string>();
+      const assignments = new Map<Element, import('../scripts/animations/poemAnimations').PoemAnimation>();
+
+      floatingThoughts.forEach(t => {
+        const el = t as HTMLElement;
+        const orig = el.textContent || '';
+        origTexts.set(el, orig);
+        const anim = pickAnimation(poemAnimation);
+        assignments.set(el, anim);
+        anim.prepare(el, orig);
       });
-    };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
+      const enterCleanups = new Map<Element, () => void>();
 
-    document.querySelectorAll('.clickable-image').forEach(el => {
-      el.addEventListener('click', () => {
-        const url = (el as HTMLElement).dataset.url || '';
-        const exif = (el as HTMLElement).dataset.exif || '';
-        const poem = (el as HTMLElement).dataset.poem || '';
-        
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          const el = entry.target as HTMLElement;
+          const anim = assignments.get(el)!;
+          const orig = origTexts.get(el) || '';
+
+          if (entry.isIntersecting) {
+            const cleanup = anim.onEnter(el, orig);
+            if (cleanup) enterCleanups.set(el, cleanup);
+          } else {
+            const cleanup = enterCleanups.get(el);
+            if (cleanup) { cleanup(); enterCleanups.delete(el); }
+            anim.onLeave(el, orig);
+          }
+        });
+      }, { threshold: 0.4 });
+
+      floatingThoughts.forEach(t => observer.observe(t));
+      cleanupPoems = () => {
+        observer.disconnect();
+        enterCleanups.forEach(fn => fn());
+        enterCleanups.clear();
+      };
+    }
+
+    const clickableImages = Array.from(document.querySelectorAll('.clickable-image')) as HTMLElement[];
+    const allImages = clickableImages.map(el => ({
+      url: el.dataset.url || '',
+      exif: el.dataset.exif || '',
+      poem: el.dataset.poem || '',
+      orientation: el.dataset.orientation as 'portrait' | 'landscape' | undefined,
+    }));
+
+    clickableImages.forEach((el, index) => {
+      const openLightbox = () => {
+        haptics.tap();
         window.dispatchEvent(new CustomEvent('open-lightbox', {
-          detail: { url, exif, poem }
+          detail: { images: allImages, index }
         }));
+      };
+      el.addEventListener('click', openLightbox);
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openLightbox();
+        }
       });
     });
 
+    // ── Sonic design: one subtle tone per image on first viewport entry ─────
+    const total = clickableImages.length;
+    const toneObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        const idx = clickableImages.indexOf(entry.target as HTMLElement);
+        playViewportTone(idx, total);
+        toneObserver.unobserve(entry.target);
+      });
+    }, { threshold: 0.6 });
+    clickableImages.forEach(img => toneObserver.observe(img));
+
+    // ── Photo development effect + skeleton toggle ──────────────────────────
+    const styledImages = Array.from(document.querySelectorAll('.styled-image')) as HTMLImageElement[];
+    const markLoaded = (img: HTMLImageElement) => {
+      const container = img.closest('.image-container');
+      container?.classList.add('loaded');
+    };
+    styledImages.forEach(img => {
+      if (img.complete && img.naturalWidth > 0) markLoaded(img);
+      else img.addEventListener('load', () => markLoaded(img), { once: true });
+    });
+
+    const developObs = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        const img = entry.target as HTMLImageElement;
+        const reveal = () => setTimeout(() => img.classList.add('developed'), 120);
+        if (img.complete) reveal();
+        else img.addEventListener('load', reveal, { once: true });
+        developObs.unobserve(img);
+      });
+    }, { threshold: 0.05 });
+    styledImages.forEach(img => {
+      // LCP optimisation: above-the-fold images are eager-loaded and often
+      // already complete at init. Mark them developed synchronously so the
+      // CSS `filter` doesn't delay LCP paint.
+      const inInitialViewport = img.getBoundingClientRect().top < window.innerHeight;
+      if (inInitialViewport && img.complete && img.naturalWidth > 0) {
+        img.classList.add('developed');
+        return;
+      }
+      developObs.observe(img);
+    });
+
+    // ── Film counter ─────────────────────────────────────────────────────────
+    const filmCounter = document.getElementById('film-counter');
+    const filmCurrent = document.getElementById('film-current');
+    const rollSectionEl = document.querySelector('.roll-section');
+    const frames = Array.from(document.querySelectorAll('.image-wrapper, .image-pair'));
+
+    let sectionObs: IntersectionObserver | null = null;
+    let frameObs: IntersectionObserver | null = null;
+    if (filmCounter && filmCurrent && rollSectionEl && frames.length > 0) {
+      sectionObs = new IntersectionObserver((entries) => {
+        entries.forEach(e => filmCounter.classList.toggle('is-active', e.isIntersecting));
+      }, { threshold: 0.01 });
+      sectionObs.observe(rollSectionEl);
+
+      frameObs = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const idx = frames.indexOf(entry.target) + 1;
+            filmCurrent.textContent = idx.toString().padStart(2, '0');
+          }
+        });
+      }, { threshold: 0.5 });
+      frames.forEach(f => frameObs!.observe(f));
+    }
+
     currentCleanup = () => {
-      window.removeEventListener('scroll', handleScroll);
+      cleanupPoems?.();
       colorObserver.disconnect();
+      developObs.disconnect();
+      toneObserver.disconnect();
+      sectionObs?.disconnect();
+      frameObs?.disconnect();
     };
   }
 

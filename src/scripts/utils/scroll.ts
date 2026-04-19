@@ -1,14 +1,14 @@
 /**
- * Utilitaire global pour gérer les animations au scroll et les interactions basées sur la visibilité.
+ * Global utility for handling scroll animations and visibility-based interactions.
  */
 
 /**
- * Seuil de visibilité par défaut pour les déclenchements liés au scroll.
+ * Default visibility threshold for scroll-based triggers.
  */
 export const REVEAL_THRESHOLD = 0.15;
 
 /**
- * Initialise l'observateur de révélation pour les éléments .reveal-on-scroll.
+ * Initializes the reveal observer for `.reveal-on-scroll` elements.
  */
 export function initScrollReveal() {
   const observerOptions = {
@@ -21,12 +21,12 @@ export function initScrollReveal() {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         entry.target.classList.add('is-visible');
-        // On arrête d'observer une fois révélé, sauf si c'est un trigger spécial (ex: auto-nav)
+        // Stop observing once revealed, except for special triggers (e.g. auto-nav)
         if (entry.target.id !== 'next-roll-trigger') {
           observer.unobserve(entry.target);
         }
       } else if (entry.target.id === 'next-roll-trigger') {
-        // Cas spécial pour le footer de navigation automatique : on reset si on remonte
+        // Special case for the auto-navigation footer: reset if we scroll back up
         entry.target.classList.remove('is-visible', 'is-loading');
         document.body.classList.remove('is-transitioning');
       }
@@ -39,7 +39,7 @@ export function initScrollReveal() {
 }
 
 /**
- * Gère l'effet de parallaxe sur les fragments de pensées poétiques.
+ * Handles the parallax effect on poetic thought fragments.
  */
 export function initThoughtParallax() {
   const thoughts = document.querySelectorAll('.thought-fragment');

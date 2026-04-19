@@ -21,28 +21,77 @@ const { roll, nextRoll } = Astro.props;
 const nextUrl = nextRoll ? `/roll/${nextRoll.id}` : "/about";
 const nextLabel = nextRoll ? "Continuer l'errance" : "Fin du recueil";
 const nextTitle = nextRoll ? nextRoll.data.title : "À Propos de l'Errance";
+
+const nextPalette = nextRoll?.data.palette?.length
+  ? nextRoll.data.palette
+  : nextRoll?.data.dominantColor
+    ? [nextRoll.data.dominantColor]
+    : [];
+
+const ogImage = roll.data.images?.[0]?.url ?? '/og-image.svg';
+const ogDescription = roll.data.poem
+  ? roll.data.poem.slice(0, 160)
+  : `${roll.data.title} — fragments photographiques`;
+
+const isProd = import.meta.env.PROD;
+const firstImg = roll.data.images?.[0];
+const preloadImage = firstImg
+  ? isProd
+    ? {
+        url: `/_vercel/image?url=${encodeURIComponent(firstImg.url)}&w=800&q=80`,
+        srcset: [400, 800, 1200].map(w =>
+          `/_vercel/image?url=${encodeURIComponent(firstImg.url)}&w=${w}&q=80 ${w}w`,
+        ).join(', '),
+        sizes: '(max-width: 768px) 100vw, 66vw',
+      }
+    : { url: firstImg.url }
+  : undefined;
+
+const rollJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "PhotoAlbum",
+  "name": roll.data.title,
+  "description": ogDescription,
+  "datePublished": roll.data.date.toISOString().split('T')[0],
+  "url": Astro.url.href,
+  "image": roll.data.images.slice(0, 5).map(img => img.url),
+  "author": {
+    "@type": "Person",
+    "name": "Marvelous journal of a wanderer"
+  }
+};
 ---
 
-<Layout title={`${roll.data.title} - Marvelous journal of a wanderer`}>
+<Layout
+  title={`${roll.data.title} - Marvelous journal of a wanderer`}
+  description={ogDescription}
+  ogImage={ogImage}
+  ogType="article"
+  jsonLd={rollJsonLd}
+  preloadImage={preloadImage}
+>
   <Navbar mode="roll" audioUrl={roll.data.audioUrl} />
 
   <main>
-    <Roll 
-      title={roll.data.title} 
-      poem={roll.data.poem} 
-      images={roll.data.images} 
-      dominantColor={roll.data.dominantColor} 
+    <Roll
+      title={roll.data.title}
+      poem={roll.data.poem}
+      images={roll.data.images}
+      dominantColor={roll.data.dominantColor}
       palette={roll.data.palette}
+      poemAnimation={roll.data.poemAnimation}
     />
     
-    <footer 
-      class="next-roll-footer reveal-on-scroll color-trigger" 
-      id="next-roll-trigger" 
+    <footer
+      class="next-roll-footer reveal-on-scroll color-trigger"
+      id="next-roll-trigger"
       data-next-url={nextUrl}
-      data-palette={JSON.stringify(nextRoll?.data.palette || [])}
+      data-palette={JSON.stringify(nextPalette)}
+      data-next-images={JSON.stringify(nextRoll?.data.images?.slice(0, 4).map(i => i.url) ?? [])}
     >
       <div class="next-progress-container">
-        <div class="next-progress-bar"></div>
+        <div class="next-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Navigation automatique"></div>
+        <button class="next-cancel-btn" id="next-cancel-btn" aria-label="Annuler la navigation automatique" hidden>×</button>
       </div>
       <span class="next-label">{nextLabel}</span>
       <a href={nextUrl} class="next-title">{nextTitle}</a>
@@ -63,7 +112,7 @@ const nextTitle = nextRoll ? nextRoll.data.title : "À Propos de l'Errance";
       top: 0;
       left: 0;
       width: 100%;
-      height: 4px;
+      height: 3px;
       background: rgba(255, 255, 255, 0.05);
     }
 
@@ -78,17 +127,33 @@ const nextTitle = nextRoll ? nextRoll.data.title : "À Propos de l'Errance";
       width: 100%;
     }
 
-    /* Transition Cinématique vers le suivant */
-    body.is-transitioning main {
-      opacity: 0;
-      filter: blur(15px);
-      transform: scale(0.99);
-      transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Skip the transition when cancelling so the bar snaps back to 0
+       instead of counting down from 100 → 0 as the "is-loading" class
+       is removed. */
+    .next-roll-footer.is-cancelling .next-progress-bar {
+      transition: none;
+      width: 0%;
     }
 
-    body.is-transitioning .bg-aura {
-      opacity: 0 !important;
-      transition: opacity 1s ease;
+    .next-cancel-btn {
+      position: absolute;
+      right: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      line-height: 1;
+      padding: 0.2rem 0.4rem;
+      cursor: pointer;
+      opacity: 0.5;
+      transition: opacity 0.2s ease;
+    }
+    .next-cancel-btn:hover, .next-cancel-btn:focus-visible {
+      opacity: 1;
+      outline: none;
     }
 
     .next-label {
@@ -113,19 +178,6 @@ const nextTitle = nextRoll ? nextRoll.data.title : "À Propos de l'Errance";
     .next-title:hover {
       opacity: 0.7;
     }
-
-    .reveal-on-scroll {
-      opacity: 0;
-      transform: translateY(40px);
-      transition: opacity 1s cubic-bezier(0.2, 0.8, 0.2, 1), 
-                  transform 1s cubic-bezier(0.2, 0.8, 0.2, 1);
-      will-change: opacity, transform;
-    }
-
-    .reveal-on-scroll.is-visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
   </style>
 
   <script>
@@ -134,66 +186,104 @@ const nextTitle = nextRoll ? nextRoll.data.title : "À Propos de l'Errance";
     const observerOptions = { root: null, rootMargin: '0px', threshold: 0.15 };
     const navOptions = { root: null, rootMargin: '0px', threshold: 0.8 };
     let navigationTimer: ReturnType<typeof setTimeout> | null = null;
+    let revealObserver: IntersectionObserver | null = null;
+    let navTriggerObserver: IntersectionObserver | null = null;
 
-    // Nettoyage avant navigation
+    // Cleanup before navigation: disconnect observers so they don't hold
+    // references to detached DOM nodes (which would otherwise leak across
+    // soft navigations and fire callbacks targeting the old page).
     document.addEventListener('astro:before-preparation', () => {
-      if (navigationTimer) {
-        clearTimeout(navigationTimer);
-        navigationTimer = null;
-      }
+      if (navigationTimer) { clearTimeout(navigationTimer); navigationTimer = null; }
+      document.body.classList.remove('is-transitioning');
+      revealObserver?.disconnect();
+      navTriggerObserver?.disconnect();
+      revealObserver = null;
+      navTriggerObserver = null;
     });
 
-    // Observer pour le Reveal (Général)
-    const revealObserver = new IntersectionObserver((entries) => {
+    const makeRevealObserver = () => new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
           entry.target.classList.add('is-visible');
-          revealObserver.unobserve(entry.target);
+          revealObserver?.unobserve(entry.target);
         }
       });
     }, observerOptions);
 
-    // Observer pour le Timer de Navigation (Spécifique au Footer)
-    const navTriggerObserver = new IntersectionObserver((entries) => {
+    const makeNavTriggerObserver = () => new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         const footer = document.getElementById('next-roll-trigger');
+        const cancelBtn = document.getElementById('next-cancel-btn') as HTMLButtonElement | null;
+        const progressBar = footer?.querySelector('.next-progress-bar') as HTMLElement | null;
         if (!footer) return;
 
+        let tickRafId: number | null = null;
+
+        const cancelNav = () => {
+          // Snap the bar back to 0 without replaying the count-up transition
+          // in reverse: add `is-cancelling` (transition: none), force a reflow,
+          // then drop both classes so future reveals animate normally.
+          footer.classList.add('is-cancelling');
+          footer.classList.remove('is-loading');
+          void footer.offsetWidth;
+          footer.classList.remove('is-cancelling');
+          document.body.classList.remove('is-transitioning');
+          if (tickRafId !== null) { cancelAnimationFrame(tickRafId); tickRafId = null; }
+          if (navigationTimer) { clearTimeout(navigationTimer); navigationTimer = null; }
+          if (cancelBtn) cancelBtn.hidden = true;
+          if (progressBar) progressBar.setAttribute('aria-valuenow', '0');
+        };
+
         if (entry.isIntersecting) {
+          // Preload the next roll's images
+          try {
+            const nextImages: string[] = JSON.parse(footer.dataset.nextImages || '[]');
+            nextImages.forEach(url => { new Image().src = url; });
+          } catch { /* ignore */ }
+
           const nextUrl = footer.dataset.nextUrl;
           if (nextUrl) {
             footer.classList.add('is-loading');
-            
-            // Délai pour l'effet de flou (transition cinématique)
-            setTimeout(() => {
-              if (footer.classList.contains('is-loading')) {
-                document.body.classList.add('is-transitioning');
-              }
-            }, 3200);
-            
+            if (cancelBtn) {
+              cancelBtn.hidden = false;
+              cancelBtn.onclick = () => { cancelNav(); cancelBtn.hidden = true; };
+            }
+
+            // Progressive update of aria-valuenow
+            const startTime = Date.now();
+            const duration = 4000;
+            const tick = () => {
+              if (!footer.classList.contains('is-loading')) return;
+              const elapsed = Date.now() - startTime;
+              const pct = Math.min(100, Math.round((elapsed / duration) * 100));
+              if (progressBar) progressBar.setAttribute('aria-valuenow', String(pct));
+              if (pct < 100) tickRafId = requestAnimationFrame(tick);
+            };
+            tickRafId = requestAnimationFrame(tick);
+
             if (navigationTimer) clearTimeout(navigationTimer);
-            
             navigationTimer = setTimeout(() => {
               if (footer.classList.contains('is-loading')) {
+                if (cancelBtn) cancelBtn.hidden = true;
                 navigate(nextUrl);
               }
-            }, 4000);
+            }, duration);
           }
         } else {
-          // Annulation si on remonte
-          footer.classList.remove('is-loading');
-          document.body.classList.remove('is-transitioning');
-          if (navigationTimer) {
-            clearTimeout(navigationTimer);
-            navigationTimer = null;
-          }
+          // Cancel if we scroll back up
+          cancelNav();
         }
       });
     }, navOptions);
 
     document.addEventListener('astro:page-load', () => {
+      revealObserver?.disconnect();
+      navTriggerObserver?.disconnect();
+      revealObserver = makeRevealObserver();
+      navTriggerObserver = makeNavTriggerObserver();
+
       const reveals = document.querySelectorAll('.reveal-on-scroll');
-      reveals.forEach(el => revealObserver.observe(el));
+      reveals.forEach(el => revealObserver!.observe(el));
 
       const nextTitle = document.querySelector('.next-title');
       if (nextTitle) {

@@ -1,0 +1,94 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+---
+
+<Layout
+  title="Pellicule vierge - Marvelous journal of a wanderer"
+  description="Ce fragment n'existe pas."
+>
+  <Navbar mode="index" />
+
+  <main class="not-found-wrapper">
+    <div class="not-found-content reveal-on-scroll">
+      <span class="frame-number">404</span>
+      <h1 class="not-found-title">Cette pellicule est vierge.</h1>
+      <p class="not-found-sub">Le fragment que vous cherchez n'a pas été développé.</p>
+      <a href="/" class="back-link">← Retourner au recueil</a>
+    </div>
+  </main>
+
+  <style is:global>
+    .not-found-wrapper {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .not-found-content {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2rem;
+    }
+
+    .frame-number {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.4em;
+      color: var(--text-muted);
+    }
+
+    .not-found-title {
+      font-family: 'Bodoni Moda', serif;
+      font-size: clamp(2rem, 8vw, 4rem);
+      font-style: italic;
+      font-weight: 500;
+      margin: 0;
+      letter-spacing: -0.02em;
+    }
+
+    .not-found-sub {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      margin: 0;
+      letter-spacing: 0.02em;
+    }
+
+    .back-link {
+      font-family: 'Bodoni Moda', serif;
+      font-style: italic;
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      margin-top: 2rem;
+      transition: color 0.3s ease, transform 0.3s ease;
+      display: inline-block;
+    }
+
+    .back-link:hover {
+      color: var(--accent);
+      transform: translateX(-8px);
+    }
+
+    .reveal-on-scroll {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 1s ease, transform 1s ease;
+    }
+    .reveal-on-scroll.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+
+  <script>
+    import { initScrollReveal } from '../scripts/utils/scroll';
+    document.addEventListener('astro:page-load', initScrollReveal);
+  </script>
+</Layout>

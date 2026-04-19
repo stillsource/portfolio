@@ -1,19 +1,19 @@
 ---
 // AudioPlayer.astro
-// Composant discret pour jouer une ambiance sonore
+// Discreet component that plays an ambient soundscape
 interface Props {
   audioUrl?: string;
 }
 const { audioUrl = '/ambiance-rue.mp3' } = Astro.props;
 ---
 <div class="audio-controls" data-current-src={audioUrl}>
-  <button id="audio-toggle" class="audio-btn" aria-label="Activer l'ambiance sonore">
+  <button id="audio-toggle" class="audio-btn" aria-label="Activer l'ambiance sonore" aria-pressed="false">
     <span class="wave w1"></span>
     <span class="wave w2"></span>
     <span class="wave w3"></span>
   </button>
   
-  <audio id="bg-audio" loop transition:persist>
+  <audio id="bg-audio" loop preload="none" transition:persist>
     <source src={audioUrl} type="audio/mpeg">
   </audio>
 </div>
@@ -49,11 +49,11 @@ const { audioUrl = '/ambiance-rue.mp3' } = Astro.props;
     transition: height 0.2s ease;
   }
 
-  /* État initial (Muet) : petites barres immobiles */
+  /* Initial state (Muted): small static bars */
   .w1, .w3 { height: 4px; }
   .w2 { height: 8px; }
 
-  /* État Actif (En lecture) : animation des vagues */
+  /* Active state (Playing): wave animation */
   .audio-btn.is-playing .wave {
     animation: playWave 1s infinite alternate;
   }
@@ -65,6 +65,13 @@ const { audioUrl = '/ambiance-rue.mp3' } = Astro.props;
   @keyframes playWave {
     0% { height: 4px; }
     100% { height: 16px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .audio-btn.is-playing .wave {
+      animation: none;
+      height: 12px;
+    }
   }
 </style>
 
@@ -83,35 +90,89 @@ const { audioUrl = '/ambiance-rue.mp3' } = Astro.props;
 
     if (!btn || !audio || !container) return;
 
+    const updateBtnState = (playing: boolean) => {
+      btn.classList.toggle('is-playing', playing);
+      btn.setAttribute('aria-pressed', String(playing));
+      btn.setAttribute('aria-label', playing ? "Désactiver l'ambiance sonore" : "Activer l'ambiance sonore");
+    };
+
     const newSrc = container.dataset.currentSrc;
     if (newSrc && !audio.src.includes(newSrc)) {
       const wasPlaying = !audio.paused;
       audio.src = newSrc;
       if (wasPlaying) {
-        audio.play().catch(() => btn.classList.remove('is-playing'));
+        audio.play().catch(() => updateBtnState(false));
       }
     }
 
     if (!audio.paused) {
-      btn.classList.add('is-playing');
+      updateBtnState(true);
     }
+
+    // ── Audio-reactive aura (Web Audio API) ─────────────────────────────────
+    let audioCtx: AudioContext | null = null;
+    let analyser: AnalyserNode | null = null;
+    let sourceNode: MediaElementAudioSourceNode | null = null;
+    let auraRafId: number | null = null;
+
+    const startAuraReaction = () => {
+      if (auraRafId !== null) return; // already active
+      if (!audioCtx) {
+        audioCtx = new AudioContext();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 64;
+        analyser.smoothingTimeConstant = 0.82;
+        sourceNode = audioCtx.createMediaElementSource(audio);
+        sourceNode.connect(analyser);
+        analyser.connect(audioCtx.destination);
+      }
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
+      const data = new Uint8Array(analyser!.frequencyBinCount);
+      const tick = () => {
+        analyser!.getByteFrequencyData(data);
+        const avg = data.reduce((s, v) => s + v, 0) / data.length;
+        const energy = Math.min(1, avg / 90);
+
+        // Drive the visual pulse directly (no CSS transition, to stay in sync)
+        const pulseEl = document.getElementById('aura-pulse') as HTMLElement | null;
+        if (pulseEl) {
+          pulseEl.style.opacity = (energy * 0.35).toFixed(3);
+          pulseEl.style.transform = `scale(${0.5 + energy * 0.8})`;
+        }
+
+        auraRafId = requestAnimationFrame(tick);
+      };
+      auraRafId = requestAnimationFrame(tick);
+    };
+
+    const stopAuraReaction = () => {
+      if (auraRafId !== null) { cancelAnimationFrame(auraRafId); auraRafId = null; }
+      const pulseEl = document.getElementById('aura-pulse') as HTMLElement | null;
+      if (pulseEl) { pulseEl.style.opacity = '0'; pulseEl.style.transform = 'scale(0.5)'; }
+    };
 
     const togglePlay = () => {
       if (audio.paused) {
-        audio.volume = 0.3; 
-        audio.play().then(() => {
-          btn.classList.add('is-playing');
-        }).catch(e => console.log("Lecture audio bloquée", e));
+        audio.volume = 0.3;
+        audio.play()
+          .then(() => { updateBtnState(true); startAuraReaction(); })
+          .catch(e => console.log("Audio playback blocked", e));
       } else {
         audio.pause();
-        btn.classList.remove('is-playing');
+        updateBtnState(false);
+        stopAuraReaction();
       }
     };
+
+    // If audio was already playing (between navigations), restart the reaction
+    if (!audio.paused) startAuraReaction();
 
     btn.addEventListener('click', togglePlay);
 
     currentAudioCleanup = () => {
       btn.removeEventListener('click', togglePlay);
+      stopAuraReaction();
     };
   }
 

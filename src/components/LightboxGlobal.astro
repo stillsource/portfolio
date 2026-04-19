@@ -1,0 +1,537 @@
+---
+// LightboxGlobal — fullscreen viewer shared by every page.
+//
+// Triggered via window.dispatchEvent(new CustomEvent('open-lightbox', {
+//   detail: { images: [{ url, poem, exif }], index: 0 }
+// }))
+// or with the legacy single-image shortcut { url, poem, exif }.
+//
+// Keyboard: Esc closes, ←/→ navigate.
+// Touch: horizontal swipe navigates, pinch zooms, swipe-down closes.
+---
+<div id="global-lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="Visionneuse de photos" aria-hidden="true">
+  <div class="lightbox-backdrop"></div>
+  <button class="lightbox-close" aria-label="Fermer">✕</button>
+  <button class="lightbox-prev" aria-label="Photo précédente">&#8592;</button>
+  <button class="lightbox-next" aria-label="Photo suivante">&#8594;</button>
+  <span class="lightbox-counter" aria-live="polite"></span>
+  <div class="lightbox-content">
+    <div class="lightbox-image-container">
+      <img id="lightbox-img" src="" alt="Photo en plein écran" draggable="false" />
+    </div>
+    <div class="lightbox-info">
+      <p id="lightbox-poem" class="lightbox-poem"></p>
+      <p id="lightbox-exif" class="lightbox-exif"></p>
+    </div>
+  </div>
+  <div id="lightbox-loupe" class="lightbox-loupe" aria-hidden="true"></div>
+  <span id="lightbox-loupe-hint" class="lightbox-loupe-hint">Maintenir pour zoomer</span>
+</div>
+
+<style is:global>
+  body.lightbox-open { overflow: hidden !important; }
+
+  .lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 15000;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    padding: 4.5rem 2rem 2rem;
+  }
+  .lightbox.is-open { display: flex; cursor: zoom-out; }
+
+  .lightbox-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.95);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    cursor: zoom-out;
+  }
+
+  .lightbox-close {
+    position: absolute;
+    top: 2rem;
+    right: 2rem;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 2.5rem;
+    cursor: pointer;
+    z-index: 2;
+    opacity: 0.5;
+    transition: opacity 0.3s ease;
+  }
+  .lightbox-close:hover { opacity: 1; }
+
+  .lightbox-prev,
+  .lightbox-next {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: white;
+    font-size: 2rem;
+    cursor: pointer;
+    z-index: 2;
+    opacity: 0.4;
+    transition: opacity 0.3s ease;
+    padding: 1rem;
+    line-height: 1;
+  }
+  .lightbox-prev { left: 1rem; }
+  .lightbox-next { right: 1rem; }
+  .lightbox-prev:hover,
+  .lightbox-next:hover { opacity: 1; }
+  .lightbox-prev[hidden],
+  .lightbox-next[hidden] { display: none; }
+
+  .lightbox-counter {
+    position: absolute;
+    top: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    color: rgba(255,255,255,0.55);
+    z-index: 2;
+    pointer-events: none;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lightbox-content {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    max-width: 1400px;
+    display: flex;
+    gap: 4rem;
+    z-index: 1;
+  }
+
+  /* Default (landscape + short poem): image top, info below, centered */
+  .lightbox.landscape .lightbox-content {
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 2rem;
+  }
+  .lightbox.landscape .lightbox-image-container {
+    flex: 0 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 0;
+  }
+  .lightbox.landscape #lightbox-img {
+    max-width: 90%;
+    max-height: 65vh;
+    object-fit: contain;
+  }
+  .lightbox.landscape .lightbox-info {
+    text-align: center;
+    max-width: min(900px, 85vw);
+    padding: 0 1.5rem;
+    flex: 0 1 auto;
+  }
+
+  /* Portrait OR long-poem: image left, info right */
+  .lightbox.portrait .lightbox-content,
+  .lightbox.long-poem .lightbox-content {
+    flex-direction: row;
+    align-items: center;
+    gap: 3rem;
+  }
+  .lightbox.portrait .lightbox-image-container,
+  .lightbox.long-poem .lightbox-image-container {
+    flex: 1.3;
+    height: 82vh;
+    display: flex;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+  .lightbox.portrait #lightbox-img,
+  .lightbox.long-poem #lightbox-img {
+    height: 100%;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+  }
+  .lightbox.portrait .lightbox-info,
+  .lightbox.long-poem .lightbox-info {
+    flex: 1;
+    text-align: left;
+    padding: 0 1rem;
+    max-height: 82vh;
+  }
+
+  #lightbox-img {
+    touch-action: none;
+    transition: transform 0.1s ease-out;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+
+  /* Loupe: hidden by default, shown while user holds the pointer on the image */
+  .lightbox-loupe {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 260px;
+    height: 260px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255, 255, 255, 0.6);
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.4),
+      0 20px 60px rgba(0, 0, 0, 0.6);
+    background-repeat: no-repeat;
+    background-color: #000;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.6);
+    transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+    z-index: 3;
+    will-change: transform, background-position, opacity;
+  }
+  .lightbox-loupe.is-active {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  .lightbox-loupe-hint {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.35);
+    z-index: 2;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  /* Reveal only when pointing at the image — keyboard users never see it. */
+  .lightbox.is-open:has(#lightbox-img:hover) .lightbox-loupe-hint { opacity: 1; }
+  .lightbox.loupe-active .lightbox-loupe-hint { opacity: 0; }
+
+  /* Hide the custom dot cursor while the loupe is up */
+  body.loupe-active .cursor-root { opacity: 0 !important; }
+
+  @media (pointer: coarse) {
+    .lightbox-loupe,
+    .lightbox-loupe-hint { display: none; }
+  }
+
+  .lightbox-poem {
+    font-family: 'Bodoni Moda', serif;
+    font-style: italic;
+    font-size: clamp(1.4rem, 2.6vw, 2.2rem);
+    line-height: 1.45;
+    margin: 0 0 1.75rem;
+    color: white;
+    white-space: pre-line;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+
+  .lightbox-exif {
+    position: relative;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.7rem;
+    line-height: 1.9;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: rgba(255, 255, 255, 0.55);
+    overflow-wrap: break-word;
+    padding-top: 1rem;
+  }
+  .lightbox-exif::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 1px;
+    background: rgba(255,255,255,0.2);
+    margin: 0 auto 1rem;
+  }
+  .lightbox.portrait .lightbox-exif::before,
+  .lightbox.long-poem .lightbox-exif::before { margin-left: 0; }
+
+  @media (max-width: 1024px) {
+    .lightbox { padding: 4rem 1rem 1.5rem; }
+    .lightbox-content { flex-direction: column !important; gap: 1.5rem; align-items: center !important; }
+    .lightbox-image-container { height: auto !important; justify-content: center !important; flex: 0 1 auto !important; }
+    #lightbox-img { max-height: 55vh !important; width: 100% !important; height: auto !important; }
+    .lightbox-info { text-align: center !important; flex: 0 1 auto !important; max-height: none !important; padding: 0 1rem !important; }
+    .lightbox.portrait .lightbox-exif::before,
+    .lightbox.long-poem .lightbox-exif::before { margin: 0 auto 1rem !important; }
+    .lightbox-poem { font-size: 1.35rem !important; }
+  }
+</style>
+
+<script>
+  import { playShutter } from '../scripts/utils/audio';
+  import { haptics } from '../scripts/utils/haptics';
+  import { attachLoupe } from '../scripts/lightbox/loupe';
+
+  type LightboxImage = { url: string; poem: string; exif: string; orientation?: 'portrait' | 'landscape' };
+
+  function initLightbox() {
+    const lightbox = document.getElementById('global-lightbox');
+    const img = document.getElementById('lightbox-img') as HTMLImageElement;
+    if (!lightbox || !img) return;
+
+    let focusBeforeLightbox: HTMLElement | null = null;
+
+    const getFocusableEls = () =>
+      Array.from(lightbox.querySelectorAll<HTMLElement>(
+        'button:not([hidden]), [tabindex="0"]:not([hidden])'
+      )).filter(el => !el.hasAttribute('hidden'));
+
+    const trapFocus = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const focusable = getFocusableEls();
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+
+    const scrollToCurrent = () => {
+      const url = lightbox.dataset.currentUrl;
+      if (!url) return;
+      const target = document.querySelector<HTMLElement>(`.clickable-image[data-url="${CSS.escape(url)}"]`);
+      if (!target) return;
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
+    const close = () => {
+      lightbox.classList.remove('is-open');
+      document.body.classList.remove('lightbox-open');
+      lightbox.setAttribute('aria-hidden', 'true');
+      lightbox.removeEventListener('keydown', trapFocus);
+      // Restore focus without scrolling — we drive the scroll ourselves below.
+      focusBeforeLightbox?.focus({ preventScroll: true });
+      // Scroll after unlocking body overflow, on next frame so layout settles.
+      requestAnimationFrame(() => scrollToCurrent());
+    };
+    window.__lightbox_close = close;
+
+    // Window listeners are attached only once for the whole tab lifetime.
+    if (!window.__lightbox_initialized) {
+      let lightboxImages: LightboxImage[] = [];
+      let lightboxIndex = 0;
+
+      const showLightboxImage = (index: number) => {
+        const targetImg = document.getElementById('lightbox-img') as HTMLImageElement;
+        const targetPoem = document.getElementById('lightbox-poem');
+        const targetExif = document.getElementById('lightbox-exif');
+        const targetLightbox = document.getElementById('global-lightbox');
+        const counter = targetLightbox?.querySelector('.lightbox-counter');
+        const btnPrev = targetLightbox?.querySelector('.lightbox-prev') as HTMLButtonElement;
+        const btnNext = targetLightbox?.querySelector('.lightbox-next') as HTMLButtonElement;
+
+        if (!targetLightbox || !targetImg) return;
+
+        const data = lightboxImages[index];
+        targetLightbox.dataset.currentUrl = data.url;
+        targetImg.src = data.url;
+        const altParts = [];
+        if (data.poem) altParts.push(data.poem.split('\n')[0].slice(0, 120));
+        if (lightboxImages.length > 1) altParts.push(`photo ${index + 1} sur ${lightboxImages.length}`);
+        if (!altParts.length && data.exif) altParts.push(data.exif);
+        targetImg.alt = altParts.join(' — ') || 'Photo en plein écran';
+        if (targetPoem) targetPoem.textContent = data.poem || '';
+        if (targetExif) targetExif.textContent = data.exif || '';
+
+        // Long-poem layout: 3+ verse lines or > 140 chars → side layout
+        const poem = data.poem || '';
+        const lineCount = poem.split('\n').filter(l => l.trim()).length;
+        const isLong = lineCount >= 3 || poem.length > 140;
+        targetLightbox.classList.toggle('long-poem', isLong);
+        if (counter) counter.textContent = lightboxImages.length > 1 ? `${index + 1} / ${lightboxImages.length}` : '';
+        if (btnPrev) btnPrev.hidden = index === 0;
+        if (btnNext) btnNext.hidden = index === lightboxImages.length - 1;
+
+        // Orientation is precomputed by the Go sync and passed via the event
+        // detail so we can apply the layout class immediately — no extra probe.
+        // Fall back to a live probe only if the producer didn't include it.
+        targetLightbox.classList.remove('portrait', 'landscape');
+        if (data.orientation === 'portrait' || data.orientation === 'landscape') {
+          targetLightbox.classList.add(data.orientation);
+        } else {
+          const temp = new Image();
+          temp.onload = () => {
+            targetLightbox.classList.add(temp.height > temp.width ? 'portrait' : 'landscape');
+          };
+          temp.src = data.url;
+        }
+      };
+
+      window.addEventListener('open-lightbox', ((e: CustomEvent) => {
+        const data = e.detail;
+        const targetLightbox = document.getElementById('global-lightbox');
+        if (!targetLightbox) return;
+
+        // Pitch variation per-index for more immersive sonic design.
+        const idx = data.index ?? 0;
+        const total = (data.images?.length ?? 1);
+        playShutter({ pitch: 0.9 + (idx / Math.max(1, total)) * 0.4, volume: 0.12 });
+
+        focusBeforeLightbox = document.activeElement as HTMLElement;
+        lightboxImages = data.images || [{ url: data.url, poem: data.poem, exif: data.exif }];
+        lightboxIndex = idx;
+
+        showLightboxImage(lightboxIndex);
+        targetLightbox.classList.add('is-open');
+        document.body.classList.add('lightbox-open');
+        targetLightbox.setAttribute('aria-hidden', 'false');
+        targetLightbox.addEventListener('keydown', trapFocus);
+        requestAnimationFrame(() => {
+          (targetLightbox.querySelector('.lightbox-close') as HTMLElement)?.focus();
+        });
+      }) as EventListener);
+
+      window.addEventListener('keydown', (e) => {
+        const key = e.key.toLowerCase();
+        if (key === 'h' || key === '.') {
+          const on = document.body.classList.toggle('chambre-noire');
+          // Hide decorative + nav chrome from AT while in chambre-noire so
+          // keyboard Tab doesn't land on invisible controls.
+          document.querySelectorAll<HTMLElement>(
+            'main header, .nav-container, .filter-section, .journal-caption, .thought-fragment, .next-roll-footer'
+          ).forEach(el => {
+            if (on) el.setAttribute('inert', '');
+            else el.removeAttribute('inert');
+          });
+        }
+        const targetLightbox = document.getElementById('global-lightbox');
+        if (targetLightbox?.classList.contains('is-open')) {
+          if (e.key === 'Escape') {
+            const fn = window.__lightbox_close;
+            if (fn) {
+              fn();
+            } else {
+              targetLightbox.classList.remove('is-open');
+              document.body.classList.remove('lightbox-open');
+              targetLightbox.setAttribute('aria-hidden', 'true');
+            }
+          } else if (e.key === 'ArrowLeft' && lightboxIndex > 0) {
+            lightboxIndex--;
+            showLightboxImage(lightboxIndex);
+          } else if (e.key === 'ArrowRight' && lightboxIndex < lightboxImages.length - 1) {
+            lightboxIndex++;
+            showLightboxImage(lightboxIndex);
+          }
+        }
+      });
+
+      window.__lightbox_initialized = true;
+    }
+
+    // Element-local listeners re-attach on every page-load (DOM is not persisted).
+    // Click anywhere closes, except on prev/next controls (close button closes too).
+    // While a loupe "hold" is in progress, the trailing click is suppressed.
+    let loupeClickGuard = false;
+    lightbox.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('.lightbox-prev, .lightbox-next')) return;
+      if (loupeClickGuard) { loupeClickGuard = false; return; }
+      close();
+    });
+
+    lightbox.querySelector('.lightbox-prev')?.addEventListener('click', () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    });
+    lightbox.querySelector('.lightbox-next')?.addEventListener('click', () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    });
+
+    // ── Loupe (hold-to-magnify, desktop only) ────────────────────────────
+    // Tear down any previous controller before re-attaching so window-level
+    // listeners and image listeners don't stack across page-loads.
+    window.__loupe_controller?.detach();
+    const loupe = document.getElementById('lightbox-loupe') as HTMLDivElement | null;
+    const lbImgEl = document.getElementById('lightbox-img') as HTMLImageElement | null;
+    if (loupe && lbImgEl) {
+      window.__loupe_controller = attachLoupe({
+        image: lbImgEl,
+        loupe,
+        lightbox,
+        onHoldEnd: () => { loupeClickGuard = true; },
+      });
+    }
+
+    // ── Swipe + pinch-zoom mobile ────────────────────────────────────────
+    let swipeStartX = 0;
+    let swipeStartY = 0;
+    let swipeTouches = 0;
+    let pinchStartDist = 0;
+    let pinchCurrentScale = 1;
+
+    const getLbImg = () => document.getElementById('lightbox-img') as HTMLImageElement | null;
+
+    lightbox.addEventListener('touchstart', (e: TouchEvent) => {
+      swipeTouches = e.touches.length;
+      if (e.touches.length === 1) {
+        swipeStartX = e.touches[0].clientX;
+        swipeStartY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
+        const dx = e.touches[1].clientX - e.touches[0].clientX;
+        const dy = e.touches[1].clientY - e.touches[0].clientY;
+        pinchStartDist = Math.hypot(dx, dy);
+        pinchCurrentScale = 1;
+      }
+    }, { passive: true });
+
+    lightbox.addEventListener('touchmove', (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const dx = e.touches[1].clientX - e.touches[0].clientX;
+        const dy = e.touches[1].clientY - e.touches[0].clientY;
+        pinchCurrentScale = Math.max(0.5, Math.min(3, Math.hypot(dx, dy) / pinchStartDist));
+        const lbImg = getLbImg();
+        if (lbImg) lbImg.style.transform = `scale(${pinchCurrentScale})`;
+      }
+    }, { passive: false });
+
+    lightbox.addEventListener('touchend', (e: TouchEvent) => {
+      if (swipeTouches === 1 && e.changedTouches.length === 1) {
+        const dx = e.changedTouches[0].clientX - swipeStartX;
+        const dy = e.changedTouches[0].clientY - swipeStartY;
+        const absDx = Math.abs(dx);
+        const absDy = Math.abs(dy);
+        // Swipe-down (dy > 80 px, low horizontal delta) closes the lightbox.
+        if (dy > 80 && absDx < 60) {
+          haptics.swipe();
+          close();
+        } else if (absDx > 50 && absDy < 80) {
+          haptics.swipe();
+          const key = dx < 0 ? 'ArrowRight' : 'ArrowLeft';
+          window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+        }
+      }
+      if (e.touches.length === 0) {
+        if (pinchCurrentScale < 1.1) {
+          const lbImg = getLbImg();
+          if (lbImg) lbImg.style.transform = '';
+        }
+        pinchCurrentScale = 1;
+        swipeTouches = 0;
+      }
+    }, { passive: true });
+  }
+
+  document.addEventListener('astro:page-load', initLightbox);
+</script>

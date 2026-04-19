@@ -12,13 +12,13 @@ const { mode = 'index', audioUrl } = Astro.props;
 ---
 
 <div id="main-nav" class={`nav-container ${mode !== 'index' ? 'is-visible' : ''}`} transition:persist="main-nav">
-  <nav class="tag-menu">
+  <nav class="tag-menu" aria-label="Navigation principale">
     {mode !== 'about' && (
       <>
         <a href="/" class="brand">Marvelous journal of a wanderer</a>
-        <div class="separator"></div>
+        <div class="separator" aria-hidden="true"></div>
         <Search />
-        <div class="separator"></div>
+        <div class="separator" aria-hidden="true"></div>
       </>
     )}
     
@@ -42,6 +42,12 @@ const { mode = 'index', audioUrl } = Astro.props;
         <a href="/" class="tag-link">Retour au Flux</a>
       </>
     )}
+
+    <div class="separator" aria-hidden="true"></div>
+    <button id="theme-toggle" class="theme-btn" aria-label="Passer en mode clair" aria-pressed="false">
+      <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
   </nav>
 </div>
 
@@ -108,6 +114,24 @@ const { mode = 'index', audioUrl } = Astro.props;
     color: var(--accent);
   }
 
+  .theme-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.25rem;
+    display: flex;
+    align-items: center;
+    transition: color 0.3s ease, transform 0.3s ease;
+  }
+  .theme-btn:hover { color: var(--accent); transform: scale(1.1); }
+  .theme-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 50%; }
+
+  /* Show the icon matching the active theme */
+  :root[data-theme="light"] .theme-btn .icon-sun { display: none; }
+  :root[data-theme="dark"] .theme-btn .icon-moon { display: none; }
+  :root:not([data-theme="light"]) .theme-btn .icon-moon { display: none; }
+
   @media (max-width: 640px) {
     .brand { display: none; }
     .separator { display: none; }
@@ -120,7 +144,7 @@ const { mode = 'index', audioUrl } = Astro.props;
     const nav = document.getElementById('main-nav');
     if (!nav) return;
 
-    // Si on est sur l'index, on attend le splash
+    // On the index, wait for the splash screen
     if (window.location.pathname === '/') {
       const showNav = () => nav.classList.add('is-visible');
       if (sessionStorage.getItem('splashSeen')) {
@@ -129,10 +153,34 @@ const { mode = 'index', audioUrl } = Astro.props;
         window.addEventListener('splashFinished', showNav, { once: true });
       }
     } else {
-      // Sinon on affiche tout de suite (déjà fait par la classe CSS ou on force)
+      // Otherwise show immediately (already done by the CSS class, or force it)
       nav.classList.add('is-visible');
     }
   }
 
   document.addEventListener('astro:page-load', setupNavVisibility);
+
+  function setupThemeToggle() {
+    const btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+
+    const updateBtn = (theme: string) => {
+      const isLight = theme === 'light';
+      btn.setAttribute('aria-pressed', String(isLight));
+      btn.setAttribute('aria-label', isLight ? 'Passer en mode sombre' : 'Passer en mode clair');
+    };
+
+    // Initialize the button state
+    updateBtn(document.documentElement.getAttribute('data-theme') || 'dark');
+
+    btn.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme') || 'dark';
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme-preference', next);
+      updateBtn(next);
+    });
+  }
+
+  document.addEventListener('astro:page-load', setupThemeToggle);
 </script>

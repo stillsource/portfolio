@@ -1,145 +1,269 @@
 ---
 // CustomCursor.astro
-// Un curseur personnalisé pour le mode Desktop
+// Snappy dot cursor + expanding ring on interactive elements.
+// Zero-lag tracking: direct transform write on pointermove (no easing).
+// Ring grows when hovering anything clickable; i-beam bar when over text fields.
 ---
-<div class="cursor-dot" id="custom-cursor" transition:persist="custom-cursor"></div>
+<div class="cursor-root" id="custom-cursor" transition:persist="custom-cursor" aria-hidden="true">
+  <span class="cursor-dot"></span>
+  <span class="cursor-ring"></span>
+  <span class="cursor-bar"></span>
+</div>
 
 <style>
   @media (pointer: fine) {
-    :global(body) {
+    :global(body),
+    :global(a),
+    :global(button),
+    :global(label),
+    :global(summary),
+    :global(input),
+    :global(textarea),
+    :global(select),
+    :global([role="button"]),
+    :global([contenteditable="true"]),
+    :global(.has-overlay),
+    :global(.clickable-image) {
       cursor: none !important;
     }
-    
-    :global(a), :global(button), :global(.has-overlay), :global(.clickable-image) {
-      cursor: none !important;
-    }
-    
-    .cursor-dot {
+
+    .cursor-root {
       position: fixed;
       top: 0;
       left: 0;
-      width: 8px;
-      height: 8px;
-      background-color: var(--accent);
-      border-radius: 50%;
       pointer-events: none;
       z-index: 20000;
-      /* On retire le translate(-50%, -50%) d'ici pour le gérer en JS proprement */
-      transition: width 0.15s cubic-bezier(0.2, 0, 0.2, 1), 
-                  height 0.15s cubic-bezier(0.2, 0, 0.2, 1), 
-                  background-color 0.15s ease, 
-                  opacity 0.2s ease;
+      opacity: 0;
+      transition: opacity 0.18s ease;
       mix-blend-mode: difference;
-      opacity: 0; 
       will-change: transform;
     }
 
-    .cursor-dot.is-hovering {
-      width: 32px;
-      height: 32px;
-      background-color: color-mix(in srgb, var(--accent) 15%, transparent);
-      border: 1px solid var(--accent);
-      mix-blend-mode: normal;
+    .cursor-root.is-visible {
+      opacity: 1;
     }
 
-    .cursor-dot.is-reading {
-      width: 50px;
-      height: 50px;
-      background-color: color-mix(in srgb, var(--accent) 10%, transparent);
-      border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-      mix-blend-mode: normal;
-      backdrop-filter: blur(2px);
-    }
-    
-    .cursor-dot.is-reading::after {
-      content: '+';
+    .cursor-dot,
+    .cursor-ring,
+    .cursor-bar {
       position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -51%);
-      color: var(--accent);
-      font-size: 18px;
-      font-weight: 200;
+      top: 0;
+      left: 0;
+      display: block;
+      transform: translate(-50%, -50%);
+      background: #ffffff;
+      border-radius: 50%;
+    }
+
+    .cursor-dot {
+      width: 7px;
+      height: 7px;
+      transition: transform 0.15s ease, opacity 0.15s ease, width 0.15s ease, height 0.15s ease;
+    }
+
+    .cursor-ring {
+      width: 34px;
+      height: 34px;
+      background: transparent;
+      border: 1.5px solid #ffffff;
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.35);
+      transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+                  opacity 0.18s ease,
+                  border-color 0.18s ease;
+    }
+
+    .cursor-bar {
+      width: 2px;
+      height: 20px;
+      border-radius: 1px;
+      opacity: 0;
+      transform: translate(-50%, -50%) scaleY(0.6);
+      transition: opacity 0.14s ease, transform 0.14s ease;
+    }
+
+    /* Clickable hover: ring expands, dot shrinks slightly */
+    .cursor-root.is-clickable .cursor-ring {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    .cursor-root.is-clickable .cursor-dot {
+      width: 4px;
+      height: 4px;
+    }
+
+    /* Pressed state: ring snaps in */
+    .cursor-root.is-pressed .cursor-ring {
+      transform: translate(-50%, -50%) scale(0.75);
+    }
+    .cursor-root.is-pressed .cursor-dot {
+      width: 10px;
+      height: 10px;
+    }
+
+    /* Text field hover: swap dot/ring for vertical bar */
+    .cursor-root.is-text .cursor-dot,
+    .cursor-root.is-text .cursor-ring {
+      opacity: 0;
+    }
+    .cursor-root.is-text .cursor-bar {
+      opacity: 1;
+      transform: translate(-50%, -50%) scaleY(1);
     }
   }
 
   @media (pointer: coarse) {
-    .cursor-dot {
+    .cursor-root {
       display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cursor-root { display: none !important; }
+    /* Restore the system cursor everywhere when motion is reduced. */
+    :global(body),
+    :global(a),
+    :global(button),
+    :global(label),
+    :global(summary),
+    :global(input),
+    :global(textarea),
+    :global(select),
+    :global([role="button"]),
+    :global([contenteditable="true"]),
+    :global(.has-overlay),
+    :global(.clickable-image) {
+      cursor: auto !important;
     }
   }
 </style>
 
 <script>
-  let cursorInitialized = false;
-  let rafId: number | null = null;
+  type CursorState = {
+    initialized: boolean;
+    inWindow: boolean;
+    hasMoved: boolean;
+    onMove: ((e: PointerEvent) => void) | null;
+    onOver: ((e: PointerEvent) => void) | null;
+    onDown: (() => void) | null;
+    onUp: (() => void) | null;
+    onLeave: (() => void) | null;
+    onEnter: (() => void) | null;
+  };
+
+  const CLICKABLE_SELECTOR = [
+    'a[href]',
+    'button:not([disabled])',
+    '[role="button"]',
+    'label[for]',
+    'summary',
+    'select',
+    'input[type="submit"]',
+    'input[type="button"]',
+    'input[type="checkbox"]',
+    'input[type="radio"]',
+    'input[type="file"]',
+    '[data-clickable]',
+    '.clickable-image',
+    '.has-overlay',
+    '[onclick]',
+  ].join(',');
+
+  const TEXT_SELECTOR = [
+    'input:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"])',
+    'textarea',
+    '[contenteditable="true"]',
+  ].join(',');
+
+  function getState(): CursorState {
+    const w = window as Window & { __cursor_state?: CursorState };
+    if (!w.__cursor_state) {
+      w.__cursor_state = {
+        initialized: false,
+        inWindow: false,
+        hasMoved: false,
+        onMove: null,
+        onOver: null,
+        onDown: null,
+        onUp: null,
+        onLeave: null,
+        onEnter: null,
+      };
+    }
+    return w.__cursor_state;
+  }
 
   function initCursor() {
-    const cursor = document.getElementById('custom-cursor');
-    if (!cursor) return;
+    const root = document.getElementById('custom-cursor');
+    if (!root) return;
 
-    // Si déjà initialisé globalement, on s'assure juste que l'opacité est correcte
-    if (cursorInitialized) {
-      cursor.style.opacity = '1';
+    const state = getState();
+
+    if (state.initialized) {
+      if (state.inWindow && state.hasMoved) root.classList.add('is-visible');
       return;
     }
 
-    let mouseX = -100;
-    let mouseY = -100;
-    let currentX = -100;
-    let currentY = -100;
-    let firstMove = false;
+    let x = -100;
+    let y = -100;
 
-    const onPointerMove = (e: PointerEvent) => {
-      mouseX = e.clientX;
-      mouseY = e.clientY;
-      
-      if (!firstMove) {
-        currentX = mouseX;
-        currentY = mouseY;
-        cursor.style.opacity = '1';
-        firstMove = true;
+    const onMove = (e: PointerEvent) => {
+      x = e.clientX;
+      y = e.clientY;
+      root.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+      if (!state.hasMoved) {
+        state.hasMoved = true;
+        state.inWindow = true;
+        root.classList.add('is-visible');
       }
     };
 
-    const updateCursor = () => {
-      if (firstMove) {
-        // Lerp plus rapide (0.45) pour réduire l'impression de lag tout en gardant du lissage
-        currentX += (mouseX - currentX) * 0.45;
-        currentY += (mouseY - currentY) * 0.45;
-        
-        // Seuil pour arrêter le calcul si on est quasi immobile
-        if (Math.abs(mouseX - currentX) < 0.1 && Math.abs(mouseY - currentY) < 0.1) {
-          currentX = mouseX;
-          currentY = mouseY;
-        }
-
-        // On utilise une seule translation 3D optimisée
-        cursor.style.transform = `translate3d(calc(${currentX}px - 50%), calc(${currentY}px - 50%), 0)`;
-      }
-      rafId = requestAnimationFrame(updateCursor);
+    const onOver = (e: PointerEvent) => {
+      const target = e.target as Element | null;
+      if (!target || !(target as Element).closest) return;
+      const isText = !!target.closest(TEXT_SELECTOR);
+      const isClick = !isText && !!target.closest(CLICKABLE_SELECTOR);
+      root.classList.toggle('is-clickable', isClick);
+      root.classList.toggle('is-text', isText);
     };
 
-    window.addEventListener('pointermove', onPointerMove, { passive: true });
-    rafId = requestAnimationFrame(updateCursor);
+    const onDown = () => root.classList.add('is-pressed');
+    const onUp = () => root.classList.remove('is-pressed');
 
-    const handleOver = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target) return;
-
-      const isInteractive = target.closest('a, button, .clickable-image');
-      const isReading = target.closest('.has-overlay');
-
-      cursor.classList.toggle('is-hovering', !!isInteractive);
-      cursor.classList.toggle('is-reading', !!isReading);
+    const onLeave = () => {
+      state.inWindow = false;
+      root.classList.remove('is-visible', 'is-clickable', 'is-text', 'is-pressed');
     };
 
-    document.addEventListener('mouseover', handleOver);
-    document.addEventListener('mouseleave', () => cursor.style.opacity = '0');
-    document.addEventListener('mouseenter', () => cursor.style.opacity = '1');
+    const onEnter = () => {
+      state.inWindow = true;
+      if (state.hasMoved) root.classList.add('is-visible');
+    };
 
-    cursorInitialized = true;
+    window.addEventListener('pointermove', onMove, { passive: true });
+    window.addEventListener('pointerover', onOver, { passive: true });
+    window.addEventListener('pointerdown', onDown, { passive: true });
+    window.addEventListener('pointerup', onUp, { passive: true });
+    window.addEventListener('mouseleave', onLeave);
+    window.addEventListener('mouseenter', onEnter);
+
+    state.onMove = onMove;
+    state.onOver = onOver;
+    state.onDown = onDown;
+    state.onUp = onUp;
+    state.onLeave = onLeave;
+    state.onEnter = onEnter;
+    state.initialized = true;
   }
 
-  document.addEventListener('astro:page-load', initCursor);
+  document.addEventListener('astro:page-load', () => {
+    initCursor();
+  });
+
+  // First load (no page-load event yet)
+  if (document.readyState !== 'loading') {
+    initCursor();
+  } else {
+    document.addEventListener('DOMContentLoaded', initCursor, { once: true });
+  }
 </script>

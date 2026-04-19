@@ -8,10 +8,10 @@ import { getTagCategory } from '../data/categories';
 const allRolls = await getCollection('rolls');
 const sortedRolls = allRolls.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
-// Extraction des tags uniques
+// Extract unique tags
 const allTags = [...new Set(sortedRolls.flatMap(roll => roll.data.tags || []))].sort();
 
-// On regroupe les tags réels présents dans les rolls par catégorie
+// Group actual tags present in rolls by category
 const groupedTags = allTags.reduce((acc, tag) => {
   const cat = getTagCategory(tag);
   if (!acc[cat]) acc[cat] = [];
@@ -20,7 +20,22 @@ const groupedTags = allTags.reduce((acc, tag) => {
 }, {} as Record<string, string[]>);
 ---
 
-<Layout title="Marvelous journal of a wanderer - Street Photography">
+<Layout
+  title="Marvelous journal of a wanderer - Street Photography"
+  description="Photographies de rue, poésie visuelle et carnets d'errance."
+  jsonLd={{
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Marvelous journal of a wanderer",
+    "url": Astro.site?.href ?? Astro.url.origin,
+    "description": "Photographies de rue, poésie visuelle et carnets d'errance.",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": `${Astro.site?.href ?? Astro.url.origin}?q={search_term_string}`,
+      "query-input": "required name=search_term_string"
+    }
+  }}
+>
   <SplashScreen />
   <Navbar mode="index" />
 
@@ -34,7 +49,7 @@ const groupedTags = allTags.reduce((acc, tag) => {
       <div class="filter-group">
         <span class="group-label">Vue</span>
         <div class="group-btns">
-          <button class="filter-btn active" data-filter="all">Tout</button>
+          <button class="filter-btn active" data-filter="all" aria-pressed="true">Tout</button>
         </div>
       </div>
 
@@ -43,12 +58,15 @@ const groupedTags = allTags.reduce((acc, tag) => {
           <span class="group-label">{category}</span>
           <div class="group-btns">
             {tags.map(tag => (
-              <button class="filter-btn" data-filter={tag}>{tag}</button>
+              <button class="filter-btn" data-filter={tag} aria-pressed="false">{tag}</button>
             ))}
           </div>
         </div>
       ))}
     </div>
+    <span id="filter-status" class="sr-only" aria-live="polite" aria-atomic="true"></span>
+
+    <div id="roll-video-bg" aria-hidden="true"></div>
 
     <ul class="roll-list" id="roll-list">
       {sortedRolls.map((roll, index) => (
@@ -57,11 +75,12 @@ const groupedTags = allTags.reduce((acc, tag) => {
           style={`animation-delay: ${0.8 + index * 0.1}s`}
           data-tags={JSON.stringify(roll.data.tags || [])}
         >
-          <a 
-            href={`/roll/${roll.id}`} 
-            class="roll-link color-hover-trigger" 
+          <a
+            href={`/roll/${roll.id}`}
+            class="roll-link color-hover-trigger"
             data-palette={JSON.stringify(roll.data.palette || [])}
             data-color={roll.data.palette ? roll.data.palette[0] : "#050505"}
+            data-video={roll.data.videoUrl ?? ''}
           >
             <span class="date">{roll.data.date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</span>
             <span class="title">{roll.data.title}</span>
@@ -73,7 +92,7 @@ const groupedTags = allTags.reduce((acc, tag) => {
   </main>
 
   <style is:global>
-    /* ----- INDEX NARRATIF ----- */
+    /* ----- NARRATIVE INDEX ----- */
     .index-container {
       min-height: 100vh;
       display: flex;
@@ -111,7 +130,7 @@ const groupedTags = allTags.reduce((acc, tag) => {
       max-width: 600px;
     }
 
-    /* ----- FILTRAGE ORGANISÉ ----- */
+    /* ----- ORGANIZED FILTERING ----- */
     .filter-section {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -179,6 +198,24 @@ const groupedTags = allTags.reduce((acc, tag) => {
       color: var(--accent);
       padding-left: 1rem;
       border-left: 1px solid var(--accent);
+    }
+
+    #roll-video-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    #roll-video-bg video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0;
+      transition: opacity 0.8s ease;
+    }
+    #roll-video-bg video.is-visible {
+      opacity: 0.15;
     }
 
     .roll-list {
@@ -259,13 +296,52 @@ const groupedTags = allTags.reduce((acc, tag) => {
 
     function setupIndexColorHover() {
       const list = document.getElementById('roll-list');
+      const videoBg = document.getElementById('roll-video-bg');
       if (!list) return;
+
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let currentVideo: HTMLVideoElement | null = null;
+      let fadeOutTimer: ReturnType<typeof setTimeout> | null = null;
+
+      const showVideo = (url: string) => {
+        if (reducedMotion || !url || !videoBg) return;
+
+        if (currentVideo && currentVideo.dataset.src === url) {
+          currentVideo.classList.add('is-visible');
+          return;
+        }
+
+        // Reuse or create the video element
+        if (!currentVideo) {
+          currentVideo = document.createElement('video');
+          currentVideo.muted = true;
+          currentVideo.loop = true;
+          currentVideo.playsInline = true;
+          currentVideo.setAttribute('aria-hidden', 'true');
+          videoBg.appendChild(currentVideo);
+        }
+
+        currentVideo.dataset.src = url;
+        currentVideo.src = url;
+        currentVideo.play().catch(() => {});
+        currentVideo.classList.add('is-visible');
+      };
+
+      const hideVideo = () => {
+        if (!currentVideo) return;
+        currentVideo.classList.remove('is-visible');
+        fadeOutTimer = setTimeout(() => {
+          currentVideo?.pause();
+        }, 800);
+      };
 
       list.addEventListener('mouseenter', (e) => {
         const trigger = (e.target as HTMLElement).closest('.color-hover-trigger') as HTMLElement;
         if (trigger) {
+          if (fadeOutTimer) { clearTimeout(fadeOutTimer); fadeOutTimer = null; }
           const paletteStr = trigger.dataset.palette;
           if (paletteStr) applyThemeColors(JSON.parse(paletteStr), true);
+          if (trigger.dataset.video) showVideo(trigger.dataset.video);
         }
       }, true);
 
@@ -273,32 +349,53 @@ const groupedTags = allTags.reduce((acc, tag) => {
         const trigger = (e.target as HTMLElement).closest('.color-hover-trigger') as HTMLElement;
         if (trigger) {
           applyThemeColors([], false);
+          hideVideo();
         }
       }, true);
     }
 
+    // Reveal timeout IDs — cancellable if a filter is triggered before the end
+    let revealTimeoutIds: ReturnType<typeof setTimeout>[] = [];
+
     function setupIndexFilters() {
       const filterBtns = document.querySelectorAll('.filter-btn');
       const rollItems = document.querySelectorAll('.roll-item');
+      const filterStatus = document.getElementById('filter-status');
 
       filterBtns.forEach(btn => {
         btn.addEventListener('click', () => {
           const filter = (btn as HTMLElement).dataset.filter;
           if (!filter) return;
 
-          filterBtns.forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
+          // Cancel pending reveal timeouts to avoid a race condition
+          revealTimeoutIds.forEach(id => clearTimeout(id));
+          revealTimeoutIds = [];
 
+          filterBtns.forEach(b => {
+            b.classList.remove('active');
+            b.setAttribute('aria-pressed', 'false');
+          });
+          btn.classList.add('active');
+          btn.setAttribute('aria-pressed', 'true');
+
+          let visibleCount = 0;
           rollItems.forEach(item => {
             const tags = JSON.parse((item as HTMLElement).dataset.tags || '[]');
             if (filter === 'all' || tags.includes(filter)) {
               item.classList.remove('hidden');
-              setTimeout(() => item.classList.add('is-visible'), 10);
+              item.classList.add('is-visible');
+              visibleCount++;
             } else {
               item.classList.remove('is-visible');
-              setTimeout(() => item.classList.add('hidden'), 600);
+              item.classList.add('hidden');
             }
           });
+
+          if (filterStatus) {
+            filterStatus.textContent = filter === 'all'
+              ? `${visibleCount} rolls affichés`
+              : `${visibleCount} roll${visibleCount > 1 ? 's' : ''} tagué${visibleCount > 1 ? 's' : ''} "${filter}"`;
+          }
         });
       });
     }
@@ -308,12 +405,15 @@ const groupedTags = allTags.reduce((acc, tag) => {
       const filters = document.querySelector('.filter-section');
       const items = document.querySelectorAll('.roll-item');
 
+      revealTimeoutIds = [];
+
       const revealAll = () => {
         if (!header) return;
         header.classList.add('is-visible');
         setTimeout(() => filters?.classList.add('is-visible'), 200);
         items.forEach((item, i) => {
-          setTimeout(() => item.classList.add('is-visible'), 400 + (i * 100));
+          const id = setTimeout(() => item.classList.add('is-visible'), 400 + (i * 100));
+          revealTimeoutIds.push(id);
         });
       };
 

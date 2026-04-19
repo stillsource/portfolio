@@ -1,25 +1,5 @@
 /**
- * Calcule la luminance moyenne d'une palette de couleurs hexadécimales.
- * Optimisé avec une approche linéaire.
- */
-export function getAverageLuminance(palette: string[]): number {
-  if (!palette?.length) return 0;
-  
-  let totalLuminance = 0;
-  for (const hex of palette) {
-    const cleanHex = hex.startsWith('#') ? hex.slice(1) : hex;
-    const r = parseInt(cleanHex.slice(0, 2), 16);
-    const g = parseInt(cleanHex.slice(2, 4), 16);
-    const b = parseInt(cleanHex.slice(4, 6), 16);
-    // Standard relative luminance formula
-    totalLuminance += (0.299 * r + 0.587 * g + 0.114 * b);
-  }
-  
-  return (totalLuminance / palette.length) / 255;
-}
-
-/**
- * État global pour verrouiller les transitions de l'aura pendant la navigation.
+ * Global state used to lock aura transitions during navigation.
  */
 let isAuraLocked = false;
 let lastPalette: string[] = [];
@@ -32,7 +12,7 @@ export const setAuraLock = (lock: boolean) => {
     document.documentElement.setAttribute('data-aura-locked', 'true');
   } else {
     document.documentElement.removeAttribute('data-aura-locked');
-    // Si on a un update en attente, on l'applique maintenant
+    // If there is a pending update, apply it now
     if (pendingPalette) {
       applyThemeColors(pendingPalette.palette, pendingPalette.isVisible);
       pendingPalette = null;
@@ -41,7 +21,7 @@ export const setAuraLock = (lock: boolean) => {
 };
 
 /**
- * Réinitialise le cache de la palette pour forcer une mise à jour au prochain appel.
+ * Resets the palette cache to force an update on the next call.
  */
 export const resetColorCache = () => {
   lastPalette = [];
@@ -50,7 +30,7 @@ export const resetColorCache = () => {
 };
 
 /**
- * Met à jour les variables CSS globales pour l'aura et le contraste du texte.
+ * Updates the global CSS variables for the aura and text contrast.
  */
 export function applyThemeColors(palette: string[], isVisible: boolean = true, force: boolean = false) {
   if (isAuraLocked && !force) {
@@ -58,7 +38,7 @@ export function applyThemeColors(palette: string[], isVisible: boolean = true, f
     return;
   }
 
-  // Comparaison rapide pour éviter le travail inutile, sauf si on force
+  // Quick comparison to avoid unnecessary work, unless forced
   if (!force && 
       isVisible === lastVisibility && 
       palette.length === lastPalette.length && 
@@ -70,40 +50,54 @@ export function applyThemeColors(palette: string[], isVisible: boolean = true, f
   lastVisibility = isVisible;
 
   const root = document.documentElement;
+  const isLight = root.getAttribute('data-theme') === 'light';
   const hasPalette = isVisible && palette?.length > 0;
-  
+
   if (!hasPalette) {
-    const defaultColor = "#050505";
-    for (let i = 1; i <= 5; i++) root.style.setProperty(`--p${i}`, defaultColor);
-    root.style.setProperty('--text-main', '#f0f0f0');
-    root.style.setProperty('--text-muted', '#aaaaaa');
-    root.style.setProperty('--accent', '#ffffff');
-    root.style.setProperty('--aura-opacity', '0.25');
-    root.style.setProperty('--bg-base', defaultColor);
+    const defaultBg = isLight ? '#f2f0eb' : '#050505';
+    for (let i = 1; i <= 5; i++) root.style.setProperty(`--p${i}`, defaultBg);
+    root.style.setProperty('--text-main', isLight ? '#1a1a1a' : '#f0f0f0');
+    root.style.setProperty('--text-muted', isLight ? '#666666' : '#aaaaaa');
+    root.style.setProperty('--accent', isLight ? '#000000' : '#ffffff');
+    root.style.setProperty('--aura-opacity', isLight ? '0.12' : '0.25');
+    root.style.setProperty('--bg-base', defaultBg);
     return;
   }
 
-  const baseColor = palette[0] || "#050505";
-  // Mise à jour des couleurs des blobs (max 5)
+  const baseColor = palette[0] || (isLight ? '#f2f0eb' : '#050505');
+  // Update blob colors (max 5)
   for (let i = 0; i < 5; i++) {
     root.style.setProperty(`--p${i + 1}`, palette[i] || baseColor);
   }
 
-  const avgLum = getAverageLuminance(palette);
-  
-  // Bascule dynamique du contraste et de l'opacité
-  if (avgLum > 0.38) {
-    root.style.setProperty('--text-main', '#000000');
-    root.style.setProperty('--text-muted', '#1a1a1a');
+  // Text contrast follows the explicit theme preference, not the palette
+  // luminance — the user's toggle is the source of truth. The palette still
+  // drives the blob colors and a subtle background tint.
+  if (isLight) {
+    root.style.setProperty('--text-main', '#1a1a1a');
+    root.style.setProperty('--text-muted', '#555555');
     root.style.setProperty('--accent', '#000000');
-    root.style.setProperty('--aura-opacity', '0.6'); // Augmenté pour les thèmes clairs
-    // On teinte légèrement le fond avec la couleur dominante pour éviter le noir pur
-    root.style.setProperty('--bg-base', `color-mix(in srgb, ${baseColor} 12%, #020202)`);
+    root.style.setProperty('--aura-opacity', '0.2');
+    root.style.setProperty('--bg-base', `color-mix(in srgb, ${baseColor} 10%, #f2f0eb)`);
   } else {
     root.style.setProperty('--text-main', '#ffffff');
     root.style.setProperty('--text-muted', '#bbbbbb');
     root.style.setProperty('--accent', '#ffffff');
     root.style.setProperty('--aura-opacity', '0.4');
-    root.style.setProperty('--bg-base', '#050505');
+    root.style.setProperty('--bg-base', `color-mix(in srgb, ${baseColor} 12%, #020202)`);
   }
+}
+
+// Re-apply theme colors whenever <html data-theme> changes so the toggle
+// is reflected immediately on pages where an aura palette is already active
+// (the inline :root style.setProperty calls above override the CSS cascade).
+if (typeof window !== 'undefined' && typeof MutationObserver !== 'undefined') {
+  const html = document.documentElement;
+  let currentTheme = html.getAttribute('data-theme');
+  new MutationObserver(() => {
+    const next = html.getAttribute('data-theme');
+    if (next === currentTheme) return;
+    currentTheme = next;
+    applyThemeColors(lastPalette, lastVisibility, true);
+  }).observe(html, { attributes: true, attributeFilter: ['data-theme'] });
 }

@@ -3,25 +3,35 @@ import Layout from '../layouts/Layout.astro';
 import Navbar from '../components/Navbar.astro';
 ---
 
-<Layout title="À propos - Marvelous journal of a wanderer">
+<Layout
+  title="À propos - Marvelous journal of a wanderer"
+  description="L'errant derrière l'objectif — photographie de rue, poésie du quotidien et fragments d'instants suspendus."
+  jsonLd={{
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": "Marvelous journal of a wanderer",
+    "url": Astro.url.origin,
+    "description": "L'errant derrière l'objectif — photographie de rue, poésie du quotidien et fragments d'instants suspendus."
+  }}
+>
   <Navbar mode="about" />
   
   <main class="about-wrapper">
     <div class="editorial-grid">
-      <!-- Colonne Image -->
+      <!-- Image column -->
       <aside class="image-column reveal-on-scroll">
         <div class="portrait-container">
           <div class="portrait-placeholder">
             <span class="placeholder-text">Portrait de l'errant</span>
           </div>
-          <!-- 
-            Plus tard, remplacez par votre image réelle :
-            <img src="/votre-photo.jpg" alt="Portrait" class="profile-img" /> 
+          <!--
+            Later, replace with your actual image:
+            <img src="/your-photo.jpg" alt="Portrait" class="profile-img" />
           -->
         </div>
       </aside>
 
-      <!-- Colonne Texte -->
+      <!-- Text column -->
       <article class="text-column">
         <header class="reveal-on-scroll">
           <span class="pre-title">Manifeste</span>
@@ -56,7 +66,7 @@ import Navbar from '../components/Navbar.astro';
       min-height: 100vh;
       display: flex;
       align-items: center;
-      padding: 8rem 2rem 12rem; /* Augmentation de la marge basse */
+      padding: 8rem 2rem 12rem; /* Increased bottom margin */
       max-width: 1200px;
       margin: 0 auto;
     }
@@ -68,7 +78,7 @@ import Navbar from '../components/Navbar.astro';
       align-items: start;
     }
 
-    /* --- Colonne Image --- */
+    /* --- Image column --- */
     .image-column {
       position: sticky;
       top: 8rem;
@@ -101,7 +111,7 @@ import Navbar from '../components/Navbar.astro';
       color: var(--text-muted);
     }
 
-    /* --- Colonne Texte --- */
+    /* --- Text column --- */
     .text-column {
       display: flex;
       flex-direction: column;
@@ -142,7 +152,7 @@ import Navbar from '../components/Navbar.astro';
       margin: 0;
     }
 
-    /* Lettrine (Drop Cap) */
+    /* Drop cap */
     .drop-cap::first-letter {
       font-family: 'Bodoni Moda', serif;
       font-size: 4.5rem;
@@ -189,7 +199,7 @@ import Navbar from '../components/Navbar.astro';
       border-color: var(--accent);
     }
 
-    /* --- Animations de Révélation --- */
+    /* --- Reveal animations --- */
     .reveal-on-scroll {
       opacity: 0;
       transform: translateY(30px);

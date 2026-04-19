@@ -1,0 +1,101 @@
+---
+// DustCanvas — fullscreen <canvas> drawing animated dust particles, visible
+// only while body.chambre-noire is active. The canvas persists across view
+// transitions (transition:persist="dust-canvas") so particle state survives
+// navigation.
+//
+// Idle throttle: the RAF loop runs only while .chambre-noire is active AND
+// the tab is visible.
+---
+<canvas id="dust-canvas" class="dust-canvas" aria-hidden="true" transition:persist="dust-canvas"></canvas>
+
+<style is:global>
+  .dust-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+  }
+  body.chambre-noire .dust-canvas { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .dust-canvas { display: none; } }
+</style>
+
+<script>
+  function initDust() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const canvas = document.getElementById('dust-canvas') as HTMLCanvasElement | null;
+    if (!canvas) return;
+    const ctx2d = canvas.getContext('2d');
+    if (!ctx2d) return;
+
+    let W = canvas.width = window.innerWidth;
+    let H = canvas.height = window.innerHeight;
+
+    const N = 24;
+    const pts = Array.from({ length: N }, () => ({
+      x: Math.random() * W, y: Math.random() * H,
+      r: Math.random() * 1.1 + 0.2,
+      vx: (Math.random() - 0.5) * 0.14,
+      vy: (Math.random() - 0.5) * 0.09 - 0.04,
+      op: Math.random() * 0.3 + 0.05,
+    }));
+
+    let rafId: number | null = null;
+    let active = false;
+
+    const tick = () => {
+      ctx2d.clearRect(0, 0, W, H);
+      pts.forEach(p => {
+        p.x = (p.x + p.vx + W) % W;
+        p.y = (p.y + p.vy + H) % H;
+        ctx2d.beginPath();
+        ctx2d.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx2d.fillStyle = `rgba(255,255,255,${p.op})`;
+        ctx2d.fill();
+      });
+      if (active && document.visibilityState !== 'hidden') {
+        rafId = requestAnimationFrame(tick);
+      } else {
+        rafId = null;
+      }
+    };
+
+    const start = () => {
+      if (active) return;
+      active = true;
+      if (rafId === null) rafId = requestAnimationFrame(tick);
+    };
+    const stop = () => {
+      active = false;
+      if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+      ctx2d.clearRect(0, 0, W, H);
+    };
+
+    new MutationObserver(() => {
+      const cn = document.body.classList.contains('chambre-noire');
+      if (cn) start(); else stop();
+    }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+
+    document.addEventListener('visibilitychange', () => {
+      if (active && document.visibilityState === 'visible' && rafId === null) {
+        rafId = requestAnimationFrame(tick);
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+    }, { passive: true });
+  }
+
+  if (!window.__dust_initialized) {
+    document.addEventListener('astro:page-load', () => {
+      initDust();
+      window.__dust_initialized = true;
+    }, { once: true });
+  }
+</script>
