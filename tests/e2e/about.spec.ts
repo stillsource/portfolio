@@ -51,4 +51,23 @@ test.describe('About page', () => {
     await expect(meta.getByRole('link', { name: /retour au recueil/i })).toBeVisible();
     await expect(meta.getByRole('link', { name: /instagram/i })).toHaveAttribute('rel', /noopener/);
   });
+
+  test('byline portrait falls back gracefully while /portrait.jpg is absent', async ({ page }) => {
+    await page.goto('/about');
+    const figure = page.locator('.byline-portrait');
+    await expect(figure).toBeAttached();
+
+    // Wait for the onerror handler to fire when the placeholder path 404s.
+    await expect(figure).toHaveClass(/no-image/, { timeout: 3000 });
+    await expect(figure.locator('.portrait-monogram')).toHaveText('HC');
+    // The original <img> is removed from the DOM by the handler so it cannot
+    // be read by screen readers.
+    await expect(figure.locator('img')).toHaveCount(0);
+  });
+
+  test('masthead and meta use the "Hors-Champ" brand', async ({ page }) => {
+    await page.goto('/about');
+    await expect(page.locator('.masthead .edition')).toHaveText('Hors-Champ');
+    await expect(page).toHaveTitle(/Hors-Champ/);
+  });
 });

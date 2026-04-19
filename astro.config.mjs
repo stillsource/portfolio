@@ -18,9 +18,9 @@ export default defineConfig({
     AstroPWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Marvelous journal of a wanderer',
-        short_name: 'Wanderer',
-        description: "Photographies de rue, poésie et carnets d'errance.",
+        name: 'Hors-Champ',
+        short_name: 'Hors-Champ',
+        description: "Photographies sans mise en scène, carnets d'errance.",
         theme_color: '#050505',
         background_color: '#050505',
         display: 'standalone',

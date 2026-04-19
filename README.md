@@ -1,4 +1,4 @@
-# Marvelous journal of a wanderer — Street Photography Portfolio
+# Hors-Champ — Street Photography Portfolio
 
 A minimalist, performant and artistic photo portfolio, built with **Astro 6** and a **Go** sync pipeline. The site keeps a "Zero Storage" architecture (images stay on your kDrive) and ships an immersive experience: cinematic transitions, adaptive ambient colors (Aura 2.0), shared lightbox with loupe, particle dust layer, scroll-reveal typography and optional soundscape.
 
@@ -55,6 +55,10 @@ Global poem shown under the Roll title.
 ```
 
 Per-photo verses appear on hover/click of each image; the global text sits under the Roll header. Poems survive kDrive resyncs — they are merged into the generated `src/content/rolls/<slug>.md` frontmatter.
+
+## Adding the portrait
+
+The About page reserves a byline portrait slot in the main body. Drop a JPEG at `public/portrait.jpg` and the page will render it; until the file exists, a typography-only fallback (monogram + hatched frame) stands in. Recommended source image: at least 400 × 540, square or 3:4.
 
 ## Adding ambient audio
 

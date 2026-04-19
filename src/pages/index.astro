@@ -21,14 +21,14 @@ const groupedTags = allTags.reduce((acc, tag) => {
 ---
 
 <Layout
-  title="Marvelous journal of a wanderer - Street Photography"
-  description="Photographies de rue, poésie visuelle et carnets d'errance."
+  title="Hors-Champ — Photographies sans mise en scène"
+  description="Hors-Champ — Photographies sans mise en scène, carnets d'errance."
   jsonLd={{
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "name": "Marvelous journal of a wanderer",
+    "name": "Hors-Champ",
     "url": Astro.site?.href ?? Astro.url.origin,
-    "description": "Photographies de rue, poésie visuelle et carnets d'errance.",
+    "description": "Hors-Champ — Photographies sans mise en scène, carnets d'errance.",
     "potentialAction": {
       "@type": "SearchAction",
       "target": `${Astro.site?.href ?? Astro.url.origin}?q={search_term_string}`,

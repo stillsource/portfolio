@@ -1,4 +1,4 @@
-# Marvelous Journal of a Wanderer — Engineering Guide for Gemini CLI
+# Hors-Champ — Engineering Guide for Gemini CLI
 
 Onboarding brief for Gemini CLI when working in this repository.
 
