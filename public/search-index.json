@@ -1,1 +1,107 @@
-[]
+[
+  {
+    "id": "matin-brumeux",
+    "title": "Matin Brumeux",
+    "date": "2026-03-22",
+    "tags": [
+      "Matin",
+      "Brume",
+      "Minimalisme",
+      "Montagne"
+    ],
+    "poem": "Le silence est une couleur que l'on ne voit qu'au lever du jour.",
+    "palette": [
+      "#4a4e69",
+      "#9a8c98",
+      "#c9ada7",
+      "#f2e9e4",
+      "#22223b"
+    ],
+    "cover": "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=1000&auto=format&fit=crop",
+    "dominantColor": "#9a8c98"
+  },
+  {
+    "id": "nuit-a-tokyo",
+    "title": "Nuit à Tokyo",
+    "date": "2026-03-20",
+    "tags": [
+      "Nocturne",
+      "Tokyo",
+      "Néon",
+      "Urbain"
+    ],
+    "poem": "Les néons ne pleurent jamais, ils saignent de la lumière.",
+    "palette": [
+      "#1a1c2c",
+      "#4a192c",
+      "#1a2c4a",
+      "#4a4a19",
+      "#2c1a4a"
+    ],
+    "cover": "https://images.unsplash.com/photo-1542051841857-5f90071e7989?q=80&w=1000&auto=format&fit=crop",
+    "dominantColor": "#1a1c2c"
+  },
+  {
+    "id": "ombres-d-or",
+    "title": "Ombres d'Or",
+    "date": "2026-03-10",
+    "tags": [
+      "Golden Hour",
+      "Contraste",
+      "Silhouette",
+      "Désert"
+    ],
+    "poem": "Le soleil baisse la voix pour laisser parler les ombres.",
+    "palette": [
+      "#d35400",
+      "#e67e22",
+      "#2c3e50",
+      "#1a1a1a",
+      "#f39c12"
+    ],
+    "cover": "https://images.unsplash.com/photo-1470219556762-1771e7f9427d?q=80&w=1000&auto=format&fit=crop",
+    "dominantColor": "#d35400"
+  },
+  {
+    "id": "reflets-de-pluie",
+    "title": "Reflets de Pluie",
+    "date": "2026-03-15",
+    "tags": [
+      "Pluie",
+      "Reflets",
+      "Bleu",
+      "Urbain"
+    ],
+    "poem": "La ville se mire dans ses larmes de goudron.",
+    "palette": [
+      "#2b3a42",
+      "#3f5866",
+      "#1a2639",
+      "#bdc3c7",
+      "#4b6584"
+    ],
+    "cover": "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=1000&auto=format&fit=crop",
+    "dominantColor": "#2b3a42"
+  },
+  {
+    "id": "silence-de-verre",
+    "title": "Silence de Verre",
+    "date": "2026-03-05",
+    "tags": [
+      "Architecture",
+      "Minimalisme",
+      "Froid",
+      "Géométrie"
+    ],
+    "poem": "La transparence est une cage dont on ne voit pas les barreaux.",
+    "palette": [
+      "#ececec",
+      "#dcdde1",
+      "#2f3640",
+      "#7f8c8d",
+      "#f5f6fa"
+    ],
+    "cover": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1000&auto=format&fit=crop",
+    "dominantColor": "#2f3640"
+  }
+]
