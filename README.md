@@ -2,6 +2,8 @@
 
 A minimalist, performant and artistic photo portfolio, built with **Astro 6** and a **Go** sync pipeline. The site keeps a "Zero Storage" architecture (images stay on your kDrive) and ships an immersive experience: cinematic transitions, adaptive ambient colors (Aura 2.0), shared lightbox with loupe, particle dust layer, scroll-reveal typography and optional soundscape.
 
+> For a deep tour of the code (Go sync internals, Aura engine, layout composition, testing matrix), read [**ARCHITECTURE.md**](./ARCHITECTURE.md).
+
 ## Requirements
 
 - Node.js ≥ 22
@@ -76,10 +78,9 @@ npx playwright test    # End-to-end suite (chromium + mobile project)
 
 ## Go sync module
 
-The sync binary lives in `src/scripts/go/kdrive-sync/`. It follows a `cmd → usecase → infrastructure → domain` layout and ships a dedicated `extractpalette` CLI for one-off palette extraction.
+The sync binary lives in `src/scripts/go/kdrive-sync/`. From the module root:
 
 ```bash
-# From the module root
 make test            # go test ./...
 make test-race       # race detector
 make test-coverage   # coverage.html + total %
@@ -87,52 +88,31 @@ make test-watch      # ginkgo watch -r
 golangci-lint run    # lint (uses .golangci.yml)
 ```
 
-A godog + go-rod BDD suite under `e2e/` drives the Astro frontend and is excluded from the unit CI run. Architecture details and the test strategy live in `CLAUDE.md`.
-
-## CI & deployment
-
-- **GitHub Actions** (`.github/workflows/ci.yml`): Go unit tests with race detector + coverage gate (≥ 70 % on `pkg/...`), `astro check`, and the Playwright e2e suite.
-- **Lighthouse** (`.github/workflows/lighthouse.yml` + `lighthouserc.json`): 3-run performance budget on preview builds.
-- **Vercel** (`vercel.json`): responsive image sizes (AVIF/WebP) and cache TTL for the kDrive image pipeline.
-- **PWA**: `@vite-pwa/astro` registers a service worker and web manifest; icons live in `public/icons/`.
-- **Sitemap**: `@astrojs/sitemap` emits a sitemap on production builds.
-- **Analytics**: `@vercel/analytics` is wired into the layout for production deploys.
-
-## Design & immersion features
-
-- **Aura 2.0** — Dynamic color engine. CSS Houdini `@property` palette vars, five persisted `.aura-blob` layers, `setAuraLock` to pause transitions during View Transitions, and `IntersectionObserver`-driven palette swaps as you scroll through photos.
-- **Shared lightbox + loupe** — Global DOM mounted once in `Layout.astro`, driven by `open-lightbox` events. Includes a hold-to-zoom magnifier.
-- **DustCanvas** — Ambient particle layer behind the content.
-- **Scroll-reveal typography** — Poem fragments animate in as they enter the viewport (`src/scripts/animations/poemAnimations.ts` + `src/styles/reveal.css`).
-- **Gestures & haptics** — Mobile swipe/pinch support with optional vibration feedback; tested under a Playwright Pixel 7 project.
-- **Chambre noire mode** — `h` / `.` shortcut dims the chrome for pure photo viewing.
-- **Splash screen** — Cinematic intro on first visit, gated by `sessionStorage`.
-- **Glassmorphism navbar**, **SVG film grain**, **View Transitions** via `ClientRouter` with Color-Lock, **`translate3d` / `will-change`** optimizations throughout.
-
-## Content schema
-
-`src/content.config.ts` declares the `rolls` collection. Each `src/content/rolls/<slug>.md` has frontmatter with `title`, `date`, `tags[]`, `poem`, `palette[]`, `dominantColor`, `audioUrl`, and a fully typed `images[]` array (url, exif, per-photo poem, palette, dominantColor).
+Architecture, test strategy and CI gate are detailed in [ARCHITECTURE.md](./ARCHITECTURE.md#go-sync-module).
 
 ## Project layout
 
 ```
 src/
 ├─ components/      # Astro UI (Roll, Lightbox, Navbar, Search, Splash, …)
+│  └─ layout/       # Layout sub-components (HeadMeta, NavigationChrome, ReadProgress)
 ├─ content/rolls/   # Generated Markdown rolls (output of Go sync)
-├─ data/            # Tag categories + legacy poetry seeds
-├─ layouts/         # Global shell
+├─ data/            # Tag categories
+├─ layouts/         # Global shell (Layout.astro — thin composer)
 ├─ pages/           # Routes (index, about, 404, roll/[slug], tags/[tag])
 ├─ scripts/
 │  ├─ animations/   # Scroll reveal
 │  ├─ lightbox/     # Loupe magnifier
 │  ├─ utils/        # audio, colors, formatExif, gestures, haptics, scroll, …
 │  └─ go/kdrive-sync/  # Go sync binary (cmd, pkg, e2e)
-├─ styles/          # Shared CSS (reveal.css)
-└─ types/           # Shared TS types (content.ts)
+├─ styles/          # Global CSS + reveal animations
+└─ types/           # Shared TS types
 
 tests/
 ├─ unit/            # Vitest specs
 └─ e2e/             # Playwright specs (chromium + mobile)
 ```
 
-Contribution notes, architecture details and agent-specific instructions live in `CLAUDE.md` and `GEMINI.md`.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for the Aura engine internals, component responsibilities, interaction utilities, view transitions, CI & deployment and the full testing matrix.
+
+Agent-specific briefs: [`CLAUDE.md`](./CLAUDE.md) (Claude Code) and [`GEMINI.md`](./GEMINI.md) (Gemini CLI).
