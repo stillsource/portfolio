@@ -76,4 +76,43 @@ test.describe('Theme toggle', () => {
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   });
+
+  test('one click still flips exactly once after several client navigations', async ({ page }) => {
+    // Regression for the navbar's `transition:persist` script re-binding on
+    // every `astro:page-load`. Each stale listener turned a single click
+    // into N rapid flips, which netted out to "nothing changed".
+    await page.addInitScript(() => localStorage.setItem('theme-preference', 'dark'));
+
+    await page.goto('/roll/matin-brumeux');
+    await page.waitForLoadState('networkidle');
+
+    // Hop across a few pages using the in-app Astro router so the navbar's
+    // persisted script listens through several `astro:page-load` events.
+    await page.locator('a[href="/"]').first().click();
+    await page.waitForLoadState('networkidle');
+    await page.locator('a[href^="/roll/"]').first().click();
+    await page.waitForLoadState('networkidle');
+    await page.locator('a[href="/about"]').first().click();
+    await page.waitForLoadState('networkidle');
+    await page.locator('a[href="/"]').first().click();
+    await page.waitForLoadState('networkidle');
+
+    // Normalise to a known start (ClientRouter's head merge can temporarily
+    // drop the client-set `data-theme` attribute; the toggle recovers from
+    // `null` by defaulting to 'dark', but that makes the expected delta
+    // ambiguous for the test).
+    const html = page.locator('html');
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+
+    await page.locator('#theme-toggle').click();
+    await expect(html).toHaveAttribute('data-theme', 'light', { timeout: 1000 });
+
+    // If the listener had been stacked by the persisted navbar, a surplus
+    // would have flipped the attribute again right after. Hold still for a
+    // beat and re-assert.
+    await page.waitForTimeout(400);
+    await expect(html).toHaveAttribute('data-theme', 'light');
+    const stored = await page.evaluate(() => localStorage.getItem('theme-preference'));
+    expect(stored).toBe('light');
+  });
 });

@@ -140,9 +140,23 @@ const { mode = 'index', audioUrl } = Astro.props;
 </style>
 
 <script>
+  // The navbar is `transition:persist`ed, so its DOM survives every Astro
+  // navigation. Every setup function must therefore guard its listener
+  // binding — otherwise each `astro:page-load` stacks another listener and
+  // the toggle ends up flipping twice, three times, four times per click.
+  type GuardedWindow = Window & {
+    __nav_visibility_initialized?: boolean;
+    __theme_toggle_initialized?: boolean;
+  };
+
   function setupNavVisibility() {
+    const w = window as GuardedWindow;
+    if (w.__nav_visibility_initialized) return;
+
     const nav = document.getElementById('main-nav');
     if (!nav) return;
+
+    w.__nav_visibility_initialized = true;
 
     // On the index, wait for the splash screen
     if (window.location.pathname === '/') {
@@ -160,25 +174,30 @@ const { mode = 'index', audioUrl } = Astro.props;
 
   document.addEventListener('astro:page-load', setupNavVisibility);
 
+  function updateThemeToggle(btn: HTMLElement, theme: string) {
+    const isLight = theme === 'light';
+    btn.setAttribute('aria-pressed', String(isLight));
+    btn.setAttribute('aria-label', isLight ? 'Passer en mode sombre' : 'Passer en mode clair');
+  }
+
   function setupThemeToggle() {
     const btn = document.getElementById('theme-toggle');
     if (!btn) return;
 
-    const updateBtn = (theme: string) => {
-      const isLight = theme === 'light';
-      btn.setAttribute('aria-pressed', String(isLight));
-      btn.setAttribute('aria-label', isLight ? 'Passer en mode sombre' : 'Passer en mode clair');
-    };
+    // Always refresh the button's accessible label against the current theme —
+    // this is idempotent and keeps the UI honest after a reload.
+    updateThemeToggle(btn, document.documentElement.getAttribute('data-theme') || 'dark');
 
-    // Initialize the button state
-    updateBtn(document.documentElement.getAttribute('data-theme') || 'dark');
+    const w = window as GuardedWindow;
+    if (w.__theme_toggle_initialized) return;
+    w.__theme_toggle_initialized = true;
 
     btn.addEventListener('click', () => {
       const current = document.documentElement.getAttribute('data-theme') || 'dark';
       const next = current === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
       localStorage.setItem('theme-preference', next);
-      updateBtn(next);
+      updateThemeToggle(btn, next);
     });
   }
 

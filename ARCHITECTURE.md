@@ -105,7 +105,17 @@ Page-level components mounted globally by Layout:
 
 ## View Transitions & persistence
 
-Astro's `ClientRouter` is active. The aura container has `transition:persist` so it never re-mounts between navigations. Global event listeners (lightbox, keyboard, aura-lock, reveal) are guarded by `window.__aura_initialized`, `window.__lightbox_initialized` and `window.__reveal_initialized` flags to prevent duplicate binding across navigations. Page-specific JS re-runs on `astro:page-load`.
+Astro's `ClientRouter` is active. The aura container, navbar, custom cursor, dust canvas and global lightbox all have `transition:persist` so they never re-mount between navigations. Any script that lives inside a persisted element re-runs on every `astro:page-load` — so its listener binding **must** be idempotent, either by an internal `initialized` state flag (see `CustomCursor.astro`, which keeps state on `window.__cursor_state`) or by a window-level guard. The flags currently in use:
+
+- `window.__aura_initialized`
+- `window.__lightbox_initialized`
+- `window.__reveal_initialized`
+- `window.__nav_visibility_initialized`
+- `window.__theme_toggle_initialized`
+- `window.__cursor_state.initialized`
+- `window.__dust_initialized`
+
+Without these guards, a user who clicks the theme toggle after three navigations would see the theme flip four times in a row and land back where it started. The regression test for exactly that pattern lives in `tests/e2e/theme.spec.ts` ("one click still flips exactly once after several client navigations"). Page-specific JS in non-persisted elements still re-runs on `astro:page-load` without special care.
 
 ## Tag categories
 
