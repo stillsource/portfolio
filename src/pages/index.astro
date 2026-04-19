@@ -45,7 +45,21 @@ const groupedTags = allTags.reduce((acc, tag) => {
       <p>Instants suspendus, fragments de rues et poésie de l'ordinaire.</p>
     </header>
 
-    <div class="filter-section" id="filter-section">
+    <div class="filter-disclosure" id="filter-disclosure">
+      <button
+        id="filter-disclosure-toggle"
+        class="filter-disclosure-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="filter-section"
+      >
+        <span class="filter-disclosure-rule" aria-hidden="true"></span>
+        <span class="filter-disclosure-label">Explorer par thème</span>
+        <span class="filter-disclosure-chevron" aria-hidden="true">↓</span>
+      </button>
+    </div>
+
+    <div class="filter-section" id="filter-section" aria-hidden="true">
       <div class="filter-group">
         <span class="group-label">Vue</span>
         <div class="group-btns">
@@ -131,14 +145,69 @@ const groupedTags = allTags.reduce((acc, tag) => {
     }
 
     /* ----- ORGANIZED FILTERING ----- */
+    .filter-disclosure {
+      margin-bottom: 4rem;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 1s ease, transform 1s ease;
+    }
+    .filter-disclosure.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .filter-disclosure-toggle {
+      width: 100%;
+      background: none;
+      border: none;
+      padding: 0.6rem 0;
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.34em;
+      color: var(--text-muted);
+      transition: color 0.3s ease;
+    }
+    .filter-disclosure-toggle:hover,
+    .filter-disclosure-toggle:focus-visible {
+      color: var(--accent);
+    }
+    .filter-disclosure-rule {
+      flex: 1;
+      height: 1px;
+      background: color-mix(in srgb, var(--text-muted) 45%, transparent);
+      transition: background 0.3s ease;
+    }
+    .filter-disclosure-toggle:hover .filter-disclosure-rule,
+    .filter-disclosure-toggle:focus-visible .filter-disclosure-rule {
+      background: color-mix(in srgb, var(--accent) 70%, transparent);
+    }
+    .filter-disclosure-chevron {
+      display: inline-block;
+      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .filter-disclosure-toggle[aria-expanded="true"] .filter-disclosure-chevron {
+      transform: rotate(180deg);
+    }
+
     .filter-section {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
       gap: 2.5rem;
-      margin-bottom: 6rem;
+      margin-bottom: 0;
+      max-height: 0;
+      overflow: hidden;
       opacity: 0;
-      transform: translateY(10px);
-      transition: opacity 1s ease, transform 1s ease;
+      transform: translateY(-6px);
+      transition:
+        max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.4s ease,
+        transform 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+        margin-bottom 0.4s ease;
     }
 
     @media (max-width: 640px) {
@@ -148,9 +217,17 @@ const groupedTags = allTags.reduce((acc, tag) => {
       }
     }
 
-    .filter-section.is-visible {
+    .filter-section.is-open {
+      max-height: 120rem;
       opacity: 1;
       transform: translateY(0);
+      margin-bottom: 6rem;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .filter-section {
+        transition: none;
+      }
     }
 
     .filter-group {
@@ -402,7 +479,7 @@ const groupedTags = allTags.reduce((acc, tag) => {
 
     function setupReveal() {
       const header = document.querySelector('.index-header');
-      const filters = document.querySelector('.filter-section');
+      const disclosure = document.querySelector('.filter-disclosure');
       const items = document.querySelectorAll('.roll-item');
 
       revealTimeoutIds = [];
@@ -410,7 +487,7 @@ const groupedTags = allTags.reduce((acc, tag) => {
       const revealAll = () => {
         if (!header) return;
         header.classList.add('is-visible');
-        setTimeout(() => filters?.classList.add('is-visible'), 200);
+        setTimeout(() => disclosure?.classList.add('is-visible'), 200);
         items.forEach((item, i) => {
           const id = setTimeout(() => item.classList.add('is-visible'), 400 + (i * 100));
           revealTimeoutIds.push(id);
@@ -424,9 +501,41 @@ const groupedTags = allTags.reduce((acc, tag) => {
       }
     }
 
+    function setupFilterDisclosure() {
+      const toggle = document.getElementById('filter-disclosure-toggle');
+      const panel = document.getElementById('filter-section');
+      if (!toggle || !panel) return;
+
+      const setOpen = (open: boolean) => {
+        panel.classList.toggle('is-open', open);
+        toggle.setAttribute('aria-expanded', String(open));
+        panel.setAttribute('aria-hidden', String(!open));
+      };
+
+      // Idempotent call on every navigation keeps ARIA honest.
+      const isOpen = panel.classList.contains('is-open');
+      setOpen(isOpen);
+
+      const w = window as Window & { __filter_disclosure_initialized?: boolean };
+      if (w.__filter_disclosure_initialized) return;
+      w.__filter_disclosure_initialized = true;
+
+      toggle.addEventListener('click', () => {
+        setOpen(!panel.classList.contains('is-open'));
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (!panel.classList.contains('is-open')) return;
+        setOpen(false);
+        (toggle as HTMLElement).focus();
+      });
+    }
+
     document.addEventListener('astro:page-load', () => {
       setupIndexColorHover();
       setupIndexFilters();
+      setupFilterDisclosure();
       setupReveal();
     });
   </script>

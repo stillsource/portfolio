@@ -47,11 +47,11 @@ test.describe('Tag pages', () => {
     await page.goto('/tags/Nocturne');
     const rollsOnTagPage = await page.locator('.roll-section').count();
 
-    // Index: filter by "Nocturne". Wait until the filter-section has faded in
-    // (~200 ms after the header reveals) so the click lands on an interactive
-    // button, not on a 0-opacity placeholder.
+    // Index: open the filter disclosure first (hidden by default), then click
+    // the Nocturne tag button.
     await page.goto('/');
-    await expect(page.locator('.filter-section')).toHaveClass(/is-visible/, { timeout: 3000 });
+    await expect(page.locator('.filter-disclosure')).toHaveClass(/is-visible/, { timeout: 3000 });
+    await page.locator('#filter-disclosure-toggle').click();
     const nocturneBtn = page.locator('.filter-btn[data-filter="Nocturne"]');
     await expect(nocturneBtn).toBeVisible();
     await nocturneBtn.click();

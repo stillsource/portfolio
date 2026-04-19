@@ -112,6 +112,7 @@ Astro's `ClientRouter` is active. The aura container, navbar, custom cursor, dus
 - `window.__reveal_initialized`
 - `window.__nav_visibility_initialized`
 - `window.__theme_toggle_initialized`
+- `window.__filter_disclosure_initialized`
 - `window.__cursor_state.initialized`
 - `window.__dust_initialized`
 

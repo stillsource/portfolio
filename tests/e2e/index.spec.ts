@@ -42,20 +42,22 @@ test.describe('Index page', () => {
     await expect(page.locator('h1, .roll-title').first()).toBeVisible();
   });
 
-  test('filter section visible with "Tout" button active', async ({ page }) => {
-    const filterSection = page.locator('.filter-section');
-    await expect(filterSection).toHaveClass(/is-visible/, { timeout: 3000 });
+  test('filter disclosure reveals a panel with "Tout" active by default', async ({ page }) => {
+    const disclosureToggle = page.locator('#filter-disclosure-toggle');
+    await expect(disclosureToggle).toBeVisible({ timeout: 3000 });
+    await disclosureToggle.click();
 
     const allBtn = page.locator('.filter-btn[data-filter="all"]');
+    await expect(allBtn).toBeVisible();
     await expect(allBtn).toHaveClass(/active/);
     await expect(allBtn).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('filtering by tag hides non-matching rolls', async ({ page }) => {
-    // Wait for the rolls to be visible
     await expect(page.locator('.roll-item').first()).toHaveClass(/is-visible/, { timeout: 3000 });
 
-    // Click on the first available tag (not "Tout")
+    // Open the filter disclosure, then click the first non-"Tout" tag button.
+    await page.locator('#filter-disclosure-toggle').click();
     const tagBtn = page.locator('.filter-btn:not([data-filter="all"])').first();
     const tagName = await tagBtn.getAttribute('data-filter');
     await tagBtn.click();
@@ -63,16 +65,9 @@ test.describe('Index page', () => {
     await expect(tagBtn).toHaveClass(/active/);
     await expect(tagBtn).toHaveAttribute('aria-pressed', 'true');
 
-    // Wait for transitions to finish (600ms delay + margin)
-    await page.waitForTimeout(800);
-
-    // Verify that rolls without this tag are hidden
-    const visibleRolls = page.locator('.roll-item:not(.hidden)');
-
-    // At least one roll visible
-    await expect(visibleRolls.first()).toBeVisible();
-
     // Visible rolls should actually carry the tag
+    const visibleRolls = page.locator('.roll-item:not(.hidden)');
+    await expect(visibleRolls.first()).toBeVisible();
     const visibleCount = await visibleRolls.count();
     for (let i = 0; i < visibleCount; i++) {
       const tags = await visibleRolls.nth(i).getAttribute('data-tags');
@@ -83,11 +78,9 @@ test.describe('Index page', () => {
   test('"Tout" shows all rolls again', async ({ page }) => {
     await expect(page.locator('.roll-item').first()).toHaveClass(/is-visible/, { timeout: 3000 });
 
-    // Filter, wait for the setTimeout(600ms) to finish, then "Tout"
+    await page.locator('#filter-disclosure-toggle').click();
     await page.locator('.filter-btn:not([data-filter="all"])').first().click();
-    await page.waitForTimeout(800);
     await page.locator('.filter-btn[data-filter="all"]').click();
-    await page.waitForTimeout(300);
 
     const hiddenRolls = page.locator('.roll-item.hidden');
     await expect(hiddenRolls).toHaveCount(0);
