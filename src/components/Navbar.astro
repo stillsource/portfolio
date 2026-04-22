@@ -55,8 +55,8 @@ const { mode = 'index', audioUrl } = Astro.props;
   .nav-container {
     position: fixed;
     bottom: 2rem;
-    left: 50%;
-    transform: translate(-50%, 0);
+    left: 0;
+    right: 0;
     z-index: 100;
     display: flex;
     justify-content: center;
@@ -64,6 +64,11 @@ const { mode = 'index', audioUrl } = Astro.props;
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.8s ease, visibility 0.8s ease;
+    pointer-events: none;
+  }
+
+  .nav-container > * {
+    pointer-events: auto;
   }
   
   .nav-container.is-visible {
