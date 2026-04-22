@@ -32,7 +32,7 @@ func TestContainer_Wiring_EndToEnd(t *testing.T) {
 
 	const (
 		driveID   = "42"
-		rootID    = "root"
+		rootID    = "1"
 		folderID  = "100"
 		imageID   = "200"
 		poetryID  = "300"

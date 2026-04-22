@@ -1,18 +1,18 @@
 package di
 
-import "kdrive-sync/pkg/infrastructure/kdriveapi"
+import "github.com/stillsource/kdrive-fuse/kdrive"
 
-// getKDriveAPIClient returns the shared low-level HTTP client for the
-// Infomaniak kDrive API.
-func (c *Container) getKDriveAPIClient() *kdriveapi.Client {
-	if c.apiClient == nil {
-		c.apiClient = kdriveapi.NewClient(
-			c.GetHTTPClient(),
-			c.GetLogger(),
-			c.cfg.DriveID,
-			c.cfg.APIToken,
-			kdriveapi.Options{BaseURL: c.cfg.KDriveBaseURL},
-		)
+// getKDriveClient returns the shared kdrive library client for this drive.
+func (c *Container) getKDriveClient() *kdrive.Client {
+	if c.kdriveClient == nil {
+		opts := []kdrive.Option{
+			kdrive.WithHTTPClient(c.GetHTTPClient()),
+			kdrive.WithLogger(c.GetLogger()),
+		}
+		if c.cfg.KDriveBaseURL != "" {
+			opts = append(opts, kdrive.WithBaseURL(c.cfg.KDriveBaseURL))
+		}
+		c.kdriveClient = kdrive.New(c.cfg.APIToken, c.cfg.DriveID, opts...)
 	}
-	return c.apiClient
+	return c.kdriveClient
 }
