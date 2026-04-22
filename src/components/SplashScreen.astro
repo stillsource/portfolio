@@ -22,7 +22,14 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    transition: transform 0.8s cubic-bezier(0.77, 0, 0.175, 1), opacity 0.5s ease; 
+    transition: transform 0.8s cubic-bezier(0.77, 0, 0.175, 1), opacity 0.5s ease;
+  }
+
+  /* Skip the splash entirely if the current session has already seen it.
+     The class is set synchronously in the <head> by HeadMeta.astro, so this
+     rule wins before the first paint and the splash never flashes. */
+  :root.splash-seen .splash-container {
+    display: none !important;
   }
 
   /* Hidden state: we push it out of view AND make it transparent */
