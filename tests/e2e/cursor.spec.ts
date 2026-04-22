@@ -49,12 +49,15 @@ test.describe('Custom cursor', () => {
     await page.mouse.move(400, 300);
     await page.waitForTimeout(100);
 
-    // Simulate a mouseleave (exiting the window)
-    await page.mouse.move(-10, -10);
-    await page.waitForTimeout(50);
+    // Simulate a mouseleave. Playwright's `mouse.move` to negative coords
+    // does not reliably dispatch `mouseleave` on window in headless Chromium,
+    // so we fire the event directly to reproduce the real user scenario.
+    await page.evaluate(() =>
+      window.dispatchEvent(new MouseEvent('mouseleave', { bubbles: false })),
+    );
 
     const cursor = page.locator('#custom-cursor');
-    await expect(cursor).toHaveCSS('opacity', '0');
+    await expect(cursor).toHaveCSS('opacity', '0', { timeout: 1000 });
 
     // Navigate
     const firstRollLink = page.locator('a[href^="/roll/"]').first();
