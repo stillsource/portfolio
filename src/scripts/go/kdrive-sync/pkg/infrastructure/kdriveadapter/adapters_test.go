@@ -40,7 +40,9 @@ var _ = Describe("FileLister", func() {
 		Expect(files[0].ID).To(Equal("10"))
 		Expect(files[0].Name).To(Equal("a.txt"))
 		Expect(files[0].Type).To(Equal(domain.DriveFileType("file")))
+		Expect(files[0].CreatedAt.Unix()).To(Equal(int64(1_700_000_000)))
 		Expect(files[1].IsDir()).To(BeTrue())
+		Expect(files[1].CreatedAt.Unix()).To(Equal(int64(1_700_000_100)))
 	})
 
 	It("rejects non-numeric folder IDs", func() {
