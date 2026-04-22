@@ -1,10 +1,10 @@
 package di
 
-import "kdrive-sync/pkg/infrastructure/filedownloader"
+import "kdrive-sync/pkg/infrastructure/kdriveadapter"
 
-func (c *Container) getFileDownloader() *filedownloader.KDrive {
+func (c *Container) getFileDownloader() *kdriveadapter.FileDownloader {
 	if c.fileDownloader == nil {
-		c.fileDownloader = filedownloader.NewKDrive(c.getKDriveAPIClient())
+		c.fileDownloader = kdriveadapter.NewFileDownloader(c.getKDriveClient().Files)
 	}
 	return c.fileDownloader
 }

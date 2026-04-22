@@ -6,18 +6,18 @@
 package di
 
 import (
-	"kdrive-sync/pkg/infrastructure/filedownloader"
-	"kdrive-sync/pkg/infrastructure/filelister"
+	"log/slog"
+	"net/http"
+
+	"github.com/stillsource/kdrive-fuse/kdrive"
+
 	"kdrive-sync/pkg/infrastructure/imageanalyzer"
-	"kdrive-sync/pkg/infrastructure/kdriveapi"
+	"kdrive-sync/pkg/infrastructure/kdriveadapter"
 	"kdrive-sync/pkg/infrastructure/paletteaggregator"
 	"kdrive-sync/pkg/infrastructure/poetryparser"
 	"kdrive-sync/pkg/infrastructure/rollwriter"
 	"kdrive-sync/pkg/infrastructure/searchindexwriter"
-	"kdrive-sync/pkg/infrastructure/sharepublisher"
 	"kdrive-sync/pkg/usecase"
-	"log/slog"
-	"net/http"
 )
 
 // Config bundles the runtime parameters needed to build a Container.
@@ -38,10 +38,10 @@ type Container struct {
 
 	logger         *slog.Logger
 	httpClient     *http.Client
-	apiClient      *kdriveapi.Client
-	fileLister     *filelister.KDrive
-	fileDownloader *filedownloader.KDrive
-	sharePublisher *sharepublisher.KDrive
+	kdriveClient   *kdrive.Client
+	fileLister     *kdriveadapter.FileLister
+	fileDownloader *kdriveadapter.FileDownloader
+	sharePublisher *kdriveadapter.SharePublisher
 	imageAnalyzer  *imageanalyzer.ExifKMeans
 	paletteAgg     *paletteaggregator.CIELAB
 	poetryParser   *poetryparser.Frontmatter
