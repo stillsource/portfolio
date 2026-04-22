@@ -2,6 +2,7 @@
   --bg-base: #050505;
   --text-main: #f0f0f0;
   --text-muted: #888888;
+  --text-poem: #d8d4cc;
   --accent: #ffffff;
 
   /* Palette variables */
@@ -22,6 +23,7 @@
 @property --bg-base { syntax: '<color>'; initial-value: #050505; inherits: true; }
 @property --text-main { syntax: '<color>'; initial-value: #f0f0f0; inherits: true; }
 @property --text-muted { syntax: '<color>'; initial-value: #888888; inherits: true; }
+@property --text-poem { syntax: '<color>'; initial-value: #d8d4cc; inherits: true; }
 @property --accent { syntax: '<color>'; initial-value: #ffffff; inherits: true; }
 @property --aura-opacity { syntax: '<number>'; initial-value: 0.25; inherits: true; }
 
@@ -30,6 +32,7 @@
   --bg-base: #f2f0eb;
   --text-main: #1a1a1a;
   --text-muted: #666666;
+  --text-poem: #2b2b2b;
   --accent: #000000;
   --aura-opacity: 0.12;
 }
