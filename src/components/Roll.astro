@@ -2,6 +2,7 @@
 // Roll.astro
 import type { RollData } from '../types/content';
 import { formatExif } from '../scripts/utils/formatExif';
+import { neutralTextForPalette } from '../data/poemColor';
 
 export interface Props {
   title: string;
@@ -20,6 +21,14 @@ const vercelImg = (url: string, w: number) =>
 const effectivePalette = palette && palette.length > 0
   ? palette
   : (images[0]?.palette && images[0].palette.length > 0 ? images[0].palette : [dominantColor]);
+
+// Precomputed neutral text color per theme, based on the roll's dominant
+// palette. Inlined on each aura-bearing element so the CSS picks the right
+// variant via :root[data-theme] — no runtime JS needed.
+const heroPoem = neutralTextForPalette(effectivePalette[0]);
+
+const imageNeutral = (img: ImageItem) =>
+  neutralTextForPalette(img.palette?.[0] ?? img.dominantColor ?? dominantColor);
 
 // Group images into singles and pairs (pair-left followed by pair-right)
 type ImageItem = RollData['images'][number];
@@ -48,7 +57,10 @@ const imageGroups: ImageGroup[] = [];
     <span class="film-sep"> — </span>
     <span class="film-total">{imageGroups.length.toString().padStart(2, '0')}</span>
   </div>
-  <div class="roll-header reveal-on-scroll">
+  <div
+    class="roll-header reveal-on-scroll"
+    style={`--poem-l: ${heroPoem.light}; --poem-d: ${heroPoem.dark};`}
+  >
     <h2 class="roll-title">{title}</h2>
     {poem && <p class="roll-poem-global">{poem}</p>}
     <div class="roll-line"></div>
@@ -60,10 +72,16 @@ const imageGroups: ImageGroup[] = [];
         const { left, right, leftIndex, rightIndex } = group;
         const leftExif = formatExif(left.exif, left.metadata);
         const rightExif = formatExif(right.exif, right.metadata);
+        const leftNeutral = imageNeutral(left);
+        const rightNeutral = imageNeutral(right);
         return (
           <div class="image-pair reveal-on-scroll">
             {/* Left image */}
-            <div class="pair-item color-trigger" data-palette={JSON.stringify(left.palette || [dominantColor])}>
+            <div
+              class="pair-item color-trigger"
+              data-palette={JSON.stringify(left.palette || [dominantColor])}
+              style={`--poem-l: ${leftNeutral.light}; --poem-d: ${leftNeutral.dark};`}
+            >
               {left.poem && (
                 <div class="thought-fragment floating-thought pair-poem">{left.poem}</div>
               )}
@@ -105,7 +123,11 @@ const imageGroups: ImageGroup[] = [];
               )}
             </div>
             {/* Right image */}
-            <div class="pair-item color-trigger" data-palette={JSON.stringify(right.palette || [dominantColor])}>
+            <div
+              class="pair-item color-trigger"
+              data-palette={JSON.stringify(right.palette || [dominantColor])}
+              style={`--poem-l: ${rightNeutral.light}; --poem-d: ${rightNeutral.dark};`}
+            >
               {right.poem && (
                 <div class="thought-fragment floating-thought pair-poem">{right.poem}</div>
               )}
@@ -153,11 +175,13 @@ const imageGroups: ImageGroup[] = [];
       const { image: img, index } = group;
       const exifString = formatExif(img.exif, img.metadata);
       const sizeClass = img.size ? `size-${img.size}` : '';
+      const neutral = imageNeutral(img);
       return (
         <div
           class={`image-wrapper reveal-on-scroll color-trigger ${sizeClass}`}
           data-palette={JSON.stringify(img.palette || [dominantColor])}
           data-color={img.dominantColor || dominantColor}
+          style={`--poem-l: ${neutral.light}; --poem-d: ${neutral.dark};`}
         >
           <div class="side-column left-col">
             {img.poem && index % 2 === 0 && (
@@ -253,12 +277,15 @@ const imageGroups: ImageGroup[] = [];
   .roll-poem-global {
     font-family: 'Bodoni Moda', serif;
     font-style: italic;
-    color: var(--text-muted);
+    color: var(--poem-d, var(--text-poem));
     font-size: clamp(1rem, 4vw, 1.3rem);
     line-height: 1.6;
     margin: 0;
     max-width: 600px;
-    opacity: 0.8;
+  }
+
+  :root[data-theme="light"] .roll-poem-global {
+    color: var(--poem-l, var(--text-poem));
   }
 
   .roll-line {
@@ -516,8 +543,12 @@ const imageGroups: ImageGroup[] = [];
     font-size: 0.65rem;
     text-transform: uppercase;
     letter-spacing: 0.2em;
-    color: var(--text-muted);
+    color: var(--poem-d, var(--text-muted));
     white-space: nowrap;
+  }
+
+  :root[data-theme="light"] .caption-exif {
+    color: var(--poem-l, var(--text-muted));
   }
 
   @media (max-width: 1300px) {
