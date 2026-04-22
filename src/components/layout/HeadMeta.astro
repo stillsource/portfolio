@@ -28,6 +28,15 @@ const { title, description, canonicalUrl, ogImage, ogType, jsonLd, preloadImage 
     document.documentElement.setAttribute('data-theme', stored || sys);
   })();
 </script>
+<!-- Anti-flash: hide the splash synchronously if it has already been seen
+     this session, before the body paints. -->
+<script is:inline>
+  try {
+    if (sessionStorage.getItem('splashSeen')) {
+      document.documentElement.classList.add('splash-seen');
+    }
+  } catch (_) {}
+</script>
 <!-- Workaround: Astro 6.1.1's ClientRouter calls Element.moveBefore(html, div, null)
      when persisting elements across View Transitions, which Chromium rejects
      ("invalid hierarchy") because <html> can only contain <head>/<body>.
