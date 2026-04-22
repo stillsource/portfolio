@@ -4,6 +4,7 @@ import Layout from '../layouts/Layout.astro';
 import SplashScreen from '../components/SplashScreen.astro';
 import Navbar from '../components/Navbar.astro';
 import { getTagCategory } from '../data/categories';
+import { neutralTextForPalette } from '../data/poemColor';
 
 const allRolls = await getCollection('rolls');
 const sortedRolls = allRolls.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
@@ -83,25 +84,29 @@ const groupedTags = allTags.reduce((acc, tag) => {
     <div id="roll-video-bg" aria-hidden="true"></div>
 
     <ul class="roll-list" id="roll-list">
-      {sortedRolls.map((roll, index) => (
-        <li 
-          class="roll-item" 
-          style={`animation-delay: ${0.8 + index * 0.1}s`}
-          data-tags={JSON.stringify(roll.data.tags || [])}
-        >
-          <a
-            href={`/roll/${roll.id}`}
-            class="roll-link color-hover-trigger"
-            data-palette={JSON.stringify(roll.data.palette || [])}
-            data-color={roll.data.palette ? roll.data.palette[0] : "#050505"}
-            data-video={roll.data.videoUrl ?? ''}
+      {sortedRolls.map((roll, index) => {
+        const baseColor = roll.data.palette?.[0] ?? roll.data.dominantColor;
+        const poem = neutralTextForPalette(baseColor);
+        return (
+          <li
+            class="roll-item"
+            style={`animation-delay: ${0.8 + index * 0.1}s; --poem-l: ${poem.light}; --poem-d: ${poem.dark};`}
+            data-tags={JSON.stringify(roll.data.tags || [])}
           >
-            <span class="date">{roll.data.date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</span>
-            <span class="title">{roll.data.title}</span>
-            {roll.data.poem && <span class="excerpt">{roll.data.poem.substring(0, 100)}...</span>}
-          </a>
-        </li>
-      ))}
+            <a
+              href={`/roll/${roll.id}`}
+              class="roll-link color-hover-trigger"
+              data-palette={JSON.stringify(roll.data.palette || [])}
+              data-color={roll.data.palette ? roll.data.palette[0] : "#050505"}
+              data-video={roll.data.videoUrl ?? ''}
+            >
+              <span class="date">{roll.data.date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</span>
+              <span class="title">{roll.data.title}</span>
+              {roll.data.poem && <span class="excerpt">{roll.data.poem.substring(0, 100)}...</span>}
+            </a>
+          </li>
+        );
+      })}
     </ul>
   </main>
 
@@ -350,12 +355,16 @@ const groupedTags = allTags.reduce((acc, tag) => {
       display: block;
       max-width: 400px;
       font-size: 0.9rem;
-      color: var(--text-muted);
+      color: var(--poem-d, var(--text-poem));
       margin-top: 0.5rem;
       line-height: 1.6;
       opacity: 0;
       transform: translateX(20px);
       transition: all 0.4s ease;
+    }
+
+    :root[data-theme="light"] .roll-link .excerpt {
+      color: var(--poem-l, var(--text-poem));
     }
 
     .roll-link:hover .excerpt {
