@@ -211,9 +211,13 @@
       x = e.clientX;
       y = e.clientY;
       root.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-      if (!state.hasMoved) {
-        state.hasMoved = true;
-        state.inWindow = true;
+      // Any pointer movement means the cursor is inside the window — ensure
+      // visibility even after a prior `mouseleave` cleared it, without waiting
+      // for a `mouseenter` (which does not always fire reliably, e.g. after
+      // tab switches or fast re-entries).
+      state.hasMoved = true;
+      state.inWindow = true;
+      if (!root.classList.contains('is-visible')) {
         root.classList.add('is-visible');
       }
     };
