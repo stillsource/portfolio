@@ -32,11 +32,14 @@ pnpm-debug.log*
 # Go compiled binaries (never commit built artifacts)
 src/scripts/go/kdrive-sync/kdrive-sync
 
-# Go coverage output
-**/coverage.out
+# Go coverage output (.out, .html, …)
+**/coverage.*
 
 # Playwright run output
 test-results/
+
+# Local AI session state (remember skill)
+.remember/
 
 # Planning files (local only, not committed)
 conductor/
