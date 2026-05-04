@@ -1,8 +1,8 @@
 ---
 // Roll.astro — radical "errance & invisible" layout.
-// Each photo takes a full viewport. Poems are hidden by default; on desktop
-// they fade in on hover (bottom-left overlay), on mobile a discreet eye icon
-// reveals a slide-up sheet with the poem and EXIF.
+// Each photo takes a full viewport. Poems are not shown next to the photo —
+// they live exclusively inside the shared lightbox (open on click/Enter/Space)
+// where there is room for long-form text without crowding the image.
 import type { RollData } from '../types/content';
 import { formatExif } from '../scripts/utils/formatExif';
 import { neutralTextForPalette } from '../data/poemColor';
@@ -62,8 +62,6 @@ const screens = images.map((img, index) => ({
   <div class="roll-screens" data-roll-palette={JSON.stringify(effectivePalette)}>
     {screens.map(({ img, index, exif, neutral }) => {
       const paletteAttr = JSON.stringify(img.palette || [dominantColor]);
-      const hasPoem = Boolean(img.poem);
-      const sheetId = `photo-poem-${index}`;
       return (
         <article
           class="photo-screen color-trigger"
@@ -102,34 +100,12 @@ const screens = images.map((img, index) => ({
                   onerror="this.closest('.photo-frame').classList.add('img-error')"
                 />
               </picture>
-
-              {hasPoem && (
-                <p class="photo-poem-overlay" aria-hidden="true">{img.poem}</p>
-              )}
             </div>
           </div>
 
-          <div class="photo-meta">
-            <span class="caption-exif">{exif}</span>
-            {hasPoem && (
-              <button
-                type="button"
-                class="photo-reveal-btn"
-                aria-expanded="false"
-                aria-controls={sheetId}
-                aria-label="Révéler le fragment poétique"
-              >
-                <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-              </button>
-            )}
-          </div>
-
-          {hasPoem && (
-            <div class="photo-poem-sheet" id={sheetId} hidden>
-              <p class="photo-poem-text">{img.poem}</p>
+          {exif && (
+            <div class="photo-meta">
+              <span class="caption-exif">{exif}</span>
             </div>
           )}
         </article>
@@ -289,57 +265,17 @@ const screens = images.map((img, index) => ({
     .styled-image { filter: none; transition: none; }
   }
 
-  /* ── Desktop poem overlay (hover) ────────────────────────────────────── */
-  .photo-poem-overlay {
-    position: absolute;
-    left: clamp(1rem, 3vw, 2rem);
-    bottom: clamp(1rem, 3vw, 2rem);
-    margin: 0;
-    max-width: min(38ch, 60%);
-    font-family: var(--font-body);
-    font-style: italic;
-    font-size: clamp(0.95rem, 1.6vw, 1.15rem);
-    line-height: 1.55;
-    color: #ffffff;
-    mix-blend-mode: difference;
-    opacity: 0;
-    transform: translateY(8px);
-    transition: opacity 0.6s ease, transform 0.6s ease;
-    pointer-events: none;
-    text-wrap: balance;
-    white-space: pre-line;
-    z-index: 2;
-  }
-
-  /* Show overlay on hover/focus — desktop pointer only */
-  @media (hover: hover) and (pointer: fine) {
-    .photo-frame:hover .photo-poem-overlay,
-    .photo-frame:focus-visible .photo-poem-overlay {
-      opacity: 0.92;
-      transform: translateY(0);
-    }
-
-    /* Mobile-only revelation UI hidden on desktop */
-    .photo-reveal-btn,
-    .photo-poem-sheet {
-      display: none;
-    }
-  }
-
-  /* ── Photo meta line (caption + reveal button) ───────────────────────── */
+  /* ── Photo meta line (EXIF caption only — poem lives in lightbox) ────── */
   .photo-meta {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
     width: 100%;
     max-width: min(100%, 1500px);
     margin: 0 auto;
     padding: 0 0.25rem;
     box-sizing: border-box;
+    text-align: right;
   }
 
   .caption-exif {
-    flex: 1;
     font-family: var(--font-mono);
     font-size: 0.65rem;
     text-transform: uppercase;
@@ -349,74 +285,11 @@ const screens = images.map((img, index) => ({
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: inline-block;
+    max-width: 100%;
   }
   :root[data-theme="light"] .caption-exif {
     color: var(--poem-l, var(--text-muted));
-  }
-
-  /* ── Mobile-only reveal button + slide-up sheet ──────────────────────── */
-  @media (hover: none), (pointer: coarse) {
-    .photo-poem-overlay { display: none; }
-  }
-
-  .photo-reveal-btn {
-    flex: 0 0 auto;
-    width: 44px;
-    height: 44px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: 1px solid color-mix(in srgb, var(--text-muted) 35%, transparent);
-    border-radius: 50%;
-    color: var(--text-main);
-    opacity: 0.7;
-    cursor: pointer;
-    transition: opacity 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
-  }
-  .photo-reveal-btn:hover,
-  .photo-reveal-btn:focus-visible {
-    opacity: 1;
-    border-color: color-mix(in srgb, var(--accent) 70%, transparent);
-  }
-  .photo-reveal-btn[aria-expanded="true"] {
-    opacity: 1;
-    border-color: var(--accent);
-    transform: rotate(180deg);
-  }
-  .icon-eye { display: block; }
-
-  .photo-poem-sheet {
-    width: 100%;
-    max-width: min(100%, 1500px);
-    margin: 0 auto;
-    overflow: hidden;
-    max-height: 0;
-    opacity: 0;
-    transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
-  }
-  .photo-poem-sheet[aria-hidden="false"] {
-    max-height: 40rem;
-    opacity: 1;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .photo-poem-sheet { transition: none; }
-  }
-
-  .photo-poem-text {
-    font-family: var(--font-body);
-    font-style: italic;
-    font-size: clamp(1rem, 2.4vw, 1.2rem);
-    line-height: 1.6;
-    color: var(--poem-d, var(--text-poem));
-    margin: 1.25rem 0 0;
-    padding: 1rem 1.25rem;
-    border-left: 1px solid color-mix(in srgb, var(--text-muted) 35%, transparent);
-    white-space: pre-line;
-    text-wrap: balance;
-  }
-  :root[data-theme="light"] .photo-poem-text {
-    color: var(--poem-l, var(--text-poem));
   }
 
   /* ── Film counter (vertical, right edge, desktop only) ───────────────── */
@@ -518,35 +391,6 @@ const screens = images.map((img, index) => ({
       photoListeners.set(el, { click: openLightbox, key: onKey });
     });
 
-    // ── Reveal button (mobile) toggles the slide-up poem sheet ──────────
-    const revealBtns = Array.from(document.querySelectorAll('.photo-reveal-btn')) as HTMLButtonElement[];
-    const revealListeners = new Map<HTMLButtonElement, () => void>();
-    revealBtns.forEach(btn => {
-      const onClick = () => {
-        const expanded = btn.getAttribute('aria-expanded') === 'true';
-        const next = !expanded;
-        btn.setAttribute('aria-expanded', String(next));
-        const sheetId = btn.getAttribute('aria-controls');
-        if (!sheetId) return;
-        const sheet = document.getElementById(sheetId);
-        if (!sheet) return;
-        if (next) {
-          sheet.removeAttribute('hidden');
-          sheet.setAttribute('aria-hidden', 'false');
-        } else {
-          sheet.setAttribute('aria-hidden', 'true');
-          window.setTimeout(() => {
-            if (btn.getAttribute('aria-expanded') === 'false') {
-              sheet.setAttribute('hidden', '');
-            }
-          }, 500);
-        }
-        haptics.tap();
-      };
-      btn.addEventListener('click', onClick);
-      revealListeners.set(btn, onClick);
-    });
-
     // ── One subtle tone per image on first viewport entry ───────────────
     const total = clickableImages.length;
     const toneObserver = new IntersectionObserver((entries) => {
@@ -624,7 +468,6 @@ const screens = images.map((img, index) => ({
         el.removeEventListener('click', fns.click);
         el.removeEventListener('keydown', fns.key);
       });
-      revealListeners.forEach((fn, btn) => btn.removeEventListener('click', fn));
     };
   }
 
