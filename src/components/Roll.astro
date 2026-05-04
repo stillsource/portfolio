@@ -1,5 +1,8 @@
 ---
-// Roll.astro
+// Roll.astro — radical "errance & invisible" layout.
+// Each photo takes a full viewport. Poems are hidden by default; on desktop
+// they fade in on hover (bottom-left overlay), on mobile a discreet eye icon
+// reveals a slide-up sheet with the poem and EXIF.
 import type { RollData } from '../types/content';
 import { formatExif } from '../scripts/utils/formatExif';
 import { neutralTextForPalette } from '../data/poemColor';
@@ -10,53 +13,43 @@ export interface Props {
   dominantColor?: string;
   palette?: string[];
   images: RollData['images'];
+  // Kept in the public API for backwards compat with callers; the radical
+  // layout reveals poems on action rather than via scroll-driven animations.
   poemAnimation?: 'scroll' | 'typewriter' | 'fade' | 'slide' | 'word' | 'blur' | 'random';
 }
-const { title, poem, dominantColor = '#050505', palette, images, poemAnimation = 'random' } = Astro.props;
+const { title, poem, dominantColor = '#050505', palette, images } = Astro.props;
 const isProd = import.meta.env.PROD;
 const vercelImg = (url: string, w: number) =>
   isProd ? `/_vercel/image?url=${encodeURIComponent(url)}&w=${w}&q=80` : url;
 
-// Robust fallback for the initial aura
+type ImageItem = RollData['images'][number];
+
 const effectivePalette = palette && palette.length > 0
   ? palette
   : (images[0]?.palette && images[0].palette.length > 0 ? images[0].palette : [dominantColor]);
 
-// Precomputed neutral text color per theme, based on the roll's dominant
-// palette. Inlined on each aura-bearing element so the CSS picks the right
-// variant via :root[data-theme] — no runtime JS needed.
 const heroPoem = neutralTextForPalette(effectivePalette[0]);
 
 const imageNeutral = (img: ImageItem) =>
   neutralTextForPalette(img.palette?.[0] ?? img.dominantColor ?? dominantColor);
 
-// Group images into singles and pairs (pair-left followed by pair-right)
-type ImageItem = RollData['images'][number];
-type ImageGroup =
-  | { type: 'single'; image: ImageItem; index: number }
-  | { type: 'pair'; left: ImageItem; right: ImageItem; leftIndex: number; rightIndex: number };
-
-const imageGroups: ImageGroup[] = [];
-{
-  let i = 0;
-  while (i < images.length) {
-    const img = images[i];
-    if (img.layout === 'pair-left' && images[i + 1]?.layout === 'pair-right') {
-      imageGroups.push({ type: 'pair', left: img, right: images[i + 1], leftIndex: i, rightIndex: i + 1 });
-      i += 2;
-    } else {
-      imageGroups.push({ type: 'single', image: img, index: i });
-      i++;
-    }
-  }
-}
+// Radical layout flattens every image into its own fullscreen screen — pairs
+// are no longer composed side-by-side. The order in which the photographer
+// authored them (including pair-left/pair-right) is preserved.
+const screens = images.map((img, index) => ({
+  img,
+  index,
+  exif: formatExif(img.exif, img.metadata),
+  neutral: imageNeutral(img),
+}));
 ---
 <section class="roll-section">
   <div class="film-counter" id="film-counter" aria-hidden="true">
     <span class="film-num" id="film-current">01</span>
     <span class="film-sep"> — </span>
-    <span class="film-total">{imageGroups.length.toString().padStart(2, '0')}</span>
+    <span class="film-total">{screens.length.toString().padStart(2, '0')}</span>
   </div>
+
   <div
     class="roll-header reveal-on-scroll"
     style={`--poem-l: ${heroPoem.light}; --poem-d: ${heroPoem.dark};`}
@@ -65,208 +58,105 @@ const imageGroups: ImageGroup[] = [];
     {poem && <p class="roll-poem-global">{poem}</p>}
     <div class="roll-line"></div>
   </div>
-  
-  <div class="roll-images" data-roll-palette={JSON.stringify(effectivePalette)} data-poem-animation={poemAnimation}>
-    {imageGroups.map((group) => {
-      if (group.type === 'pair') {
-        const { left, right, leftIndex, rightIndex } = group;
-        const leftExif = formatExif(left.exif, left.metadata);
-        const rightExif = formatExif(right.exif, right.metadata);
-        const leftNeutral = imageNeutral(left);
-        const rightNeutral = imageNeutral(right);
-        return (
-          <div class="image-pair reveal-on-scroll">
-            {/* Left image */}
-            <div
-              class="pair-item color-trigger"
-              data-palette={JSON.stringify(left.palette || [dominantColor])}
-              style={`--poem-l: ${leftNeutral.light}; --poem-d: ${leftNeutral.dark};`}
-            >
-              {left.poem && (
-                <div class="thought-fragment floating-thought pair-poem">{left.poem}</div>
-              )}
-              <div
-                class="image-container has-overlay clickable-image"
-                role="button"
-                tabindex="0"
-                aria-label={left.alt || `Ouvrir la photo ${leftIndex + 1} en plein écran`}
-                data-url={left.url}
-                data-exif={leftExif}
-                data-poem={left.poem || ''}
-                data-orientation={left.orientation}
-              >
-                <picture>
-                  {isProd && (
-                    <source
-                      type="image/avif"
-                      srcset={[400, 800].map(w => vercelImg(left.url, w) + ` ${w}w`).join(', ')}
-                      sizes="(max-width: 768px) 100vw, 33vw"
-                    />
-                  )}
-                  <img
-                    src={vercelImg(left.url, 800)}
-                    alt={left.alt || `Photo du roll ${title}`}
-                    loading={leftIndex === 0 ? "eager" : "lazy"}
-                    decoding={leftIndex === 0 ? "sync" : "async"}
-                    fetchpriority={leftIndex === 0 ? "high" : undefined}
-                    width={left.width}
-                    height={left.height}
-                    class="styled-image"
-                    onerror="this.closest('.image-container').classList.add('img-error')"
-                  />
-                </picture>
-              </div>
-              {leftExif && (
-                <div class="journal-caption">
-                  <span class="caption-exif">{leftExif}</span>
-                </div>
-              )}
-            </div>
-            {/* Right image */}
-            <div
-              class="pair-item color-trigger"
-              data-palette={JSON.stringify(right.palette || [dominantColor])}
-              style={`--poem-l: ${rightNeutral.light}; --poem-d: ${rightNeutral.dark};`}
-            >
-              {right.poem && (
-                <div class="thought-fragment floating-thought pair-poem">{right.poem}</div>
-              )}
-              <div
-                class="image-container has-overlay clickable-image"
-                role="button"
-                tabindex="0"
-                aria-label={right.alt || `Ouvrir la photo ${rightIndex + 1} en plein écran`}
-                data-url={right.url}
-                data-exif={rightExif}
-                data-poem={right.poem || ''}
-                data-orientation={right.orientation}
-              >
-                <picture>
-                  {isProd && (
-                    <source
-                      type="image/avif"
-                      srcset={[400, 800].map(w => vercelImg(right.url, w) + ` ${w}w`).join(', ')}
-                      sizes="(max-width: 768px) 100vw, 33vw"
-                    />
-                  )}
-                  <img
-                    src={vercelImg(right.url, 800)}
-                    alt={right.alt || `Photo du roll ${title}`}
-                    loading="lazy"
-                    decoding="async"
-                    width={right.width}
-                    height={right.height}
-                    class="styled-image"
-                    onerror="this.closest('.image-container').classList.add('img-error')"
-                  />
-                </picture>
-              </div>
-              {rightExif && (
-                <div class="journal-caption">
-                  <span class="caption-exif">{rightExif}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      }
 
-      // Single image
-      const { image: img, index } = group;
-      const exifString = formatExif(img.exif, img.metadata);
-      const sizeClass = img.size ? `size-${img.size}` : '';
-      const neutral = imageNeutral(img);
+  <div class="roll-screens" data-roll-palette={JSON.stringify(effectivePalette)}>
+    {screens.map(({ img, index, exif, neutral }) => {
+      const paletteAttr = JSON.stringify(img.palette || [dominantColor]);
+      const hasPoem = Boolean(img.poem);
+      const sheetId = `photo-poem-${index}`;
       return (
-        <div
-          class={`image-wrapper reveal-on-scroll color-trigger ${sizeClass}`}
-          data-palette={JSON.stringify(img.palette || [dominantColor])}
+        <article
+          class="photo-screen color-trigger"
+          data-palette={paletteAttr}
           data-color={img.dominantColor || dominantColor}
           style={`--poem-l: ${neutral.light}; --poem-d: ${neutral.dark};`}
         >
-          <div class="side-column left-col">
-            {img.poem && index % 2 === 0 && (
-              <div class="thought-fragment floating-thought left">
-                {img.poem}
-              </div>
-            )}
-          </div>
-
-          <div class="center-column">
-            <div
-              class="image-container has-overlay clickable-image"
-              role="button"
-              tabindex="0"
-              aria-label={img.alt || `Ouvrir la photo ${index + 1} en plein écran`}
-              data-url={img.url}
-              data-exif={exifString}
-              data-poem={img.poem || ''}
-              data-orientation={img.orientation}
-            >
+          <div
+            class="photo-frame clickable-image has-overlay"
+            role="button"
+            tabindex="0"
+            aria-label={img.alt || `Ouvrir la photo ${index + 1} en plein écran`}
+            data-url={img.url}
+            data-exif={exif}
+            data-poem={img.poem || ''}
+            data-orientation={img.orientation}
+          >
+            <div class="photo-frame-inner">
               <picture>
                 {isProd && (
                   <source
                     type="image/avif"
-                    srcset={[400, 800, 1200].map(w => vercelImg(img.url, w) + ` ${w}w`).join(', ')}
-                    sizes="(max-width: 768px) 100vw, 66vw"
+                    srcset={[800, 1200, 1800, 2400].map(w => vercelImg(img.url, w) + ` ${w}w`).join(', ')}
+                    sizes="(max-width: 768px) 100vw, min(90vw, 1600px)"
                   />
                 )}
                 <img
-                  src={vercelImg(img.url, 800)}
-                  alt={img.alt || `Photo du roll ${title}`}
+                  src={vercelImg(img.url, 1600)}
+                  alt={img.alt || `Photo ${index + 1} du carnet ${title}`}
                   loading={index === 0 ? "eager" : "lazy"}
                   decoding={index === 0 ? "sync" : "async"}
                   fetchpriority={index === 0 ? "high" : undefined}
                   width={img.width}
                   height={img.height}
                   class="styled-image"
-                  onerror="this.closest('.image-container').classList.add('img-error')"
+                  onerror="this.closest('.photo-frame').classList.add('img-error')"
                 />
               </picture>
 
-              {(exifString || img.poem) && (
-                <div class="image-overlay">
-                  {/* Overlay kept for the cursor */}
-                </div>
+              {hasPoem && (
+                <p class="photo-poem-overlay" aria-hidden="true">{img.poem}</p>
               )}
             </div>
-
-            <div class="journal-caption">
-              {exifString && <span class="caption-exif">{exifString}</span>}
-            </div>
           </div>
 
-          <div class="side-column right-col">
-            {img.poem && index % 2 !== 0 && (
-              <div class="thought-fragment floating-thought right">
-                {img.poem}
-              </div>
+          <div class="photo-meta">
+            <span class="caption-exif">{exif}</span>
+            {hasPoem && (
+              <button
+                type="button"
+                class="photo-reveal-btn"
+                aria-expanded="false"
+                aria-controls={sheetId}
+                aria-label="Révéler le fragment poétique"
+              >
+                <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
             )}
           </div>
-        </div>
+
+          {hasPoem && (
+            <div class="photo-poem-sheet" id={sheetId} hidden>
+              <p class="photo-poem-text">{img.poem}</p>
+            </div>
+          )}
+        </article>
       );
     })}
   </div>
 </section>
 
 <style>
-  .roll-section { 
-    margin-bottom: clamp(6rem, 15vw, 12rem); 
+  .roll-section {
+    margin-bottom: clamp(4rem, 8vw, 8rem);
   }
-  
+
   .roll-header {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 1.5rem;
-    padding: clamp(6rem, 15vw, 10rem) 1rem clamp(3rem, 10vw, 6rem);
-    max-width: 800px;
+    gap: 1.25rem;
+    padding: clamp(6rem, 14vw, 10rem) 1.5rem clamp(3rem, 8vw, 5rem);
+    max-width: 720px;
     margin: 0 auto;
     text-align: center;
   }
 
   .roll-title {
-    font-family: 'Bodoni Moda', serif;
+    font-family: var(--font-display);
     font-size: clamp(2.5rem, 8vw, 4rem);
     font-style: italic;
     font-weight: 500;
@@ -275,13 +165,13 @@ const imageGroups: ImageGroup[] = [];
   }
 
   .roll-poem-global {
-    font-family: 'Bodoni Moda', serif;
+    font-family: var(--font-body);
     font-style: italic;
     color: var(--poem-d, var(--text-poem));
-    font-size: clamp(1rem, 4vw, 1.3rem);
+    font-size: clamp(1rem, 2.4vw, 1.2rem);
     line-height: 1.6;
     margin: 0;
-    max-width: 600px;
+    max-width: 560px;
   }
 
   :root[data-theme="light"] .roll-poem-global {
@@ -291,141 +181,245 @@ const imageGroups: ImageGroup[] = [];
   .roll-line {
     height: 1px;
     width: 100px;
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: color-mix(in srgb, var(--text-muted) 35%, transparent);
   }
 
-  .image-wrapper {
-    display: grid;
-    grid-template-columns: 1fr minmax(auto, 1000px) 1fr;
-    gap: 2rem;
-    max-width: 1600px;
-    margin: 0 auto clamp(12rem, 30vw, 25rem);
-    padding: 0 2rem;
-    align-items: center;
-  }
-
-  .image-wrapper.size-large  { max-width: 1200px; }
-  .image-wrapper.size-medium { max-width: 800px; grid-template-columns: 1fr minmax(auto, 600px) 1fr; }
-  .image-wrapper.size-small  { max-width: 500px; grid-template-columns: 1fr minmax(auto, 360px) 1fr; }
-
-  /* Side-by-side pairs */
-  .image-pair {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
-    max-width: 1400px;
-    margin: 0 auto clamp(12rem, 30vw, 25rem);
-    padding: 0 2rem;
-    align-items: start;
-  }
-
-  .pair-item {
+  /* ── Fullscreen photo screens ───────────────────────────────────────── */
+  .roll-screens {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
   }
 
-  .thought-fragment.pair-poem {
-    text-align: center;
+  .photo-screen {
+    position: relative;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    padding: clamp(2rem, 6vh, 4rem) clamp(1rem, 3vw, 2.5rem);
+    box-sizing: border-box;
+  }
+
+  .photo-frame {
+    position: relative;
+    background: none;
+    border: 0;
     padding: 0;
-    font-size: clamp(0.9rem, 1.8vw, 1.3rem);
+    margin: 0;
+    width: 100%;
+    max-width: min(100%, 1500px);
+    max-height: 82dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .photo-frame:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 6px;
+  }
+
+  .photo-frame-inner {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    max-height: 82dvh;
+  }
+
+  /* Skeleton shimmer until the image loads */
+  .photo-frame:not(.loaded):not(.img-error) .photo-frame-inner::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--text-muted) 8%, transparent) 0%,
+      color-mix(in srgb, var(--text-muted) 18%, transparent) 50%,
+      color-mix(in srgb, var(--text-muted) 8%, transparent) 100%
+    );
+    background-size: 200% 100%;
+    animation: roll-shimmer 1.8s infinite ease-in-out;
+    z-index: 1;
+    pointer-events: none;
+  }
+  @keyframes roll-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .photo-frame:not(.loaded):not(.img-error) .photo-frame-inner::before { animation: none; }
+  }
+
+  .photo-frame.img-error .styled-image { display: none; }
+  .photo-frame.img-error .photo-frame-inner::after {
+    content: attr(aria-label);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    aspect-ratio: 3 / 2;
+    border: 1px solid color-mix(in srgb, var(--text-muted) 30%, transparent);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    opacity: 0.5;
+  }
+
+  .styled-image {
+    display: block;
+    max-width: 100%;
+    max-height: 82dvh;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35);
+    /* Film development: gentle blur → sharp on viewport entry */
+    filter: blur(3px) brightness(1.04) contrast(0.95) sepia(0.06);
+    transition: filter 0.7s ease-out;
+  }
+  .styled-image.developed {
+    filter: blur(0) brightness(1) contrast(1) sepia(0);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .styled-image { filter: none; transition: none; }
+  }
+
+  /* ── Desktop poem overlay (hover) ────────────────────────────────────── */
+  .photo-poem-overlay {
+    position: absolute;
+    left: clamp(1rem, 3vw, 2rem);
+    bottom: clamp(1rem, 3vw, 2rem);
+    margin: 0;
+    max-width: min(38ch, 60%);
+    font-family: var(--font-body);
+    font-style: italic;
+    font-size: clamp(0.95rem, 1.6vw, 1.15rem);
+    line-height: 1.55;
+    color: #ffffff;
+    mix-blend-mode: difference;
     opacity: 0;
-    transition: opacity 1s ease;
+    transform: translateY(8px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+    pointer-events: none;
+    text-wrap: balance;
+    white-space: pre-line;
+    z-index: 2;
   }
 
-  .image-pair.is-visible .thought-fragment.pair-poem {
-    opacity: 0.7;
-  }
+  /* Show overlay on hover/focus — desktop pointer only */
+  @media (hover: hover) and (pointer: fine) {
+    .photo-frame:hover .photo-poem-overlay,
+    .photo-frame:focus-visible .photo-poem-overlay {
+      opacity: 0.92;
+      transform: translateY(0);
+    }
 
-  @media (max-width: 768px) {
-    .image-pair {
-      grid-template-columns: 1fr;
+    /* Mobile-only revelation UI hidden on desktop */
+    .photo-reveal-btn,
+    .photo-poem-sheet {
+      display: none;
     }
   }
 
-  .center-column {
+  /* ── Photo meta line (caption + reveal button) ───────────────────────── */
+  .photo-meta {
     display: flex;
-    flex-direction: column;
     align-items: center;
+    gap: 1rem;
     width: 100%;
+    max-width: min(100%, 1500px);
+    margin: 0 auto;
+    padding: 0 0.25rem;
+    box-sizing: border-box;
   }
 
-  .side-column {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    min-width: 200px;
+  .caption-exif {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: var(--poem-d, var(--text-muted));
+    opacity: 0.65;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  :root[data-theme="light"] .caption-exif {
+    color: var(--poem-l, var(--text-muted));
   }
 
-  .thought-fragment {
-    font-family: 'Bodoni Moda', serif;
-    font-style: italic;
-    font-size: clamp(1.1rem, 2.5vw, 1.6rem);
+  /* ── Mobile-only reveal button + slide-up sheet ──────────────────────── */
+  @media (hover: none), (pointer: coarse) {
+    .photo-poem-overlay { display: none; }
+  }
+
+  .photo-reveal-btn {
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 1px solid color-mix(in srgb, var(--text-muted) 35%, transparent);
+    border-radius: 50%;
     color: var(--text-main);
+    opacity: 0.7;
+    cursor: pointer;
+    transition: opacity 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+  }
+  .photo-reveal-btn:hover,
+  .photo-reveal-btn:focus-visible {
+    opacity: 1;
+    border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+  }
+  .photo-reveal-btn[aria-expanded="true"] {
+    opacity: 1;
+    border-color: var(--accent);
+    transform: rotate(180deg);
+  }
+  .icon-eye { display: block; }
+
+  .photo-poem-sheet {
+    width: 100%;
+    max-width: min(100%, 1500px);
+    margin: 0 auto;
+    overflow: hidden;
+    max-height: 0;
     opacity: 0;
-    pointer-events: none;
-    line-height: 1.5;
+    transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
+  }
+  .photo-poem-sheet[aria-hidden="false"] {
+    max-height: 40rem;
+    opacity: 1;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .photo-poem-sheet { transition: none; }
+  }
+
+  .photo-poem-text {
+    font-family: var(--font-body);
+    font-style: italic;
+    font-size: clamp(1rem, 2.4vw, 1.2rem);
+    line-height: 1.6;
+    color: var(--poem-d, var(--text-poem));
+    margin: 1.25rem 0 0;
+    padding: 1rem 1.25rem;
+    border-left: 1px solid color-mix(in srgb, var(--text-muted) 35%, transparent);
     white-space: pre-line;
-    overflow-wrap: break-word;
-    hyphens: auto;
-    will-change: transform, opacity;
-    transition: opacity 1s ease;
+    text-wrap: balance;
+  }
+  :root[data-theme="light"] .photo-poem-text {
+    color: var(--poem-l, var(--text-poem));
   }
 
-  /* Fade animation: simple appearance via IntersectionObserver */
-  .thought-fragment.anim-fade {
-    transform: none;
-    transition: opacity 1.5s ease;
-  }
-
-  .thought-fragment.anim-fade.is-visible {
-    opacity: 0.75;
-  }
-
-  /* Typewriter animation: text is injected char-by-char by JS */
-  .thought-fragment.anim-typewriter {
-    transform: none;
-    transition: none;
-    min-height: 1.4em;
-  }
-
-  /* Slide animation: slides in from the edge depending on position */
-  .thought-fragment.anim-slide {
-    transition: opacity 0.9s ease, transform 0.9s ease;
-  }
-  .thought-fragment.anim-slide.left  { transform: translateX(25px); }
-  .thought-fragment.anim-slide.right { transform: translateX(-25px); }
-  .thought-fragment.anim-slide.pair-poem { transform: translateY(20px); }
-  .thought-fragment.anim-slide.is-visible { opacity: 0.75; transform: none; }
-
-  /* Word animation: words revealed one by one via JS spans */
-  .thought-fragment.anim-word { opacity: 1 !important; }
-  .thought-fragment.anim-word .poem-word {
-    opacity: 0;
-    display: inline-block;
-    transition: opacity 0.4s ease;
-    transition-delay: calc(var(--word-i) * 120ms);
-  }
-  .thought-fragment.anim-word.is-visible .poem-word { opacity: 0.75; }
-
-  /* Blur animation: blurred to sharp */
-  .thought-fragment.anim-blur {
-    filter: blur(10px);
-    transition: opacity 1.2s ease, filter 1.2s ease;
-  }
-  .thought-fragment.anim-blur.is-visible { opacity: 0.75; filter: blur(0); }
-
-
-  .thought-fragment.left {
-    text-align: right;
-    padding-right: 2rem;
-  }
-
-  .thought-fragment.right {
-    text-align: left;
-    padding-left: 2rem;
-  }
-
+  /* ── Film counter (vertical, right edge, desktop only) ───────────────── */
   .film-counter {
     position: fixed;
     right: 1.5rem;
@@ -436,7 +430,7 @@ const imageGroups: ImageGroup[] = [];
     align-items: center;
     gap: 0.4rem;
     z-index: 100;
-    font-family: 'Inter', monospace;
+    font-family: var(--font-mono);
     font-size: 0.55rem;
     letter-spacing: 0.2em;
     writing-mode: vertical-rl;
@@ -455,248 +449,48 @@ const imageGroups: ImageGroup[] = [];
   .film-total { color: var(--text-muted); opacity: 0.5; }
 
   @media (max-width: 1024px) { .film-counter { display: none; } }
-
-  .image-container {
-    position: relative;
-    width: 100%;
-    z-index: 2;
-    transition: transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
-    will-change: transform;
-  }
-
-  /* Skeleton shimmer — removed as soon as the image finishes loading. */
-  .image-container:not(.loaded):not(.img-error)::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--text-muted) 10%, transparent) 0%,
-      color-mix(in srgb, var(--text-muted) 20%, transparent) 50%,
-      color-mix(in srgb, var(--text-muted) 10%, transparent) 100%
-    );
-    background-size: 200% 100%;
-    animation: roll-shimmer 1.8s infinite ease-in-out;
-    z-index: 1;
-    pointer-events: none;
-  }
-  @keyframes roll-shimmer {
-    0%   { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .image-container:not(.loaded):not(.img-error)::before { animation: none; }
-  }
-
-.image-container.img-error .styled-image {
-    display: none;
-  }
-
-  .image-container.img-error::after {
-    content: attr(aria-label);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    aspect-ratio: 3 / 2;
-    border: 1px solid color-mix(in srgb, var(--text-muted) 30%, transparent);
-    color: var(--text-muted);
-    font-family: 'Inter', sans-serif;
-    font-size: 0.75rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    opacity: 0.5;
-  }
-
-  .styled-image {
-    display: block;
-    width: 100%;
-    height: auto;
-    object-fit: contain;
-    box-shadow: 0 30px 60px rgba(0,0,0,0.3);
-    /* Film development: light blur → sharp in 0.7s */
-    filter: blur(3px) brightness(1.06) contrast(0.92) sepia(0.08);
-    transition: filter 0.7s ease-out;
-  }
-  .styled-image.developed {
-    filter: blur(0px) brightness(1) contrast(1) sepia(0);
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .styled-image { filter: none; transition: none; }
-  }
-
-  .journal-caption {
-    width: 100%;
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 2rem;
-    opacity: 0.5;
-    transition: opacity 0.8s ease;
-  }
-
-  .image-wrapper.is-visible .journal-caption {
-    opacity: 1;
-  }
-
-  .caption-exif {
-    font-family: 'Inter', sans-serif;
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 0.2em;
-    color: var(--poem-d, var(--text-muted));
-    white-space: nowrap;
-  }
-
-  :root[data-theme="light"] .caption-exif {
-    color: var(--poem-l, var(--text-muted));
-  }
-
-  @media (max-width: 1300px) {
-    .image-wrapper {
-      grid-template-columns: 1fr;
-      max-width: 1000px;
-    }
-    .side-column {
-      order: -1; /* Thoughts sit on top on small screens */
-      min-width: auto;
-    }
-    .thought-fragment {
-      text-align: center !important;
-      padding: 0 !important;
-      margin-bottom: 3rem;
-      opacity: 0.5 !important;
-    }
-  }
-
-  .image-overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .has-overlay:hover .image-overlay { opacity: 1; }
 </style>
 
 <script>
   import { applyThemeColors } from '../scripts/utils/colors';
   import { REVEAL_THRESHOLD } from '../scripts/utils/scroll';
-  import { pickAnimation } from '../scripts/animations/poemAnimations';
   import { playViewportTone } from '../scripts/utils/audio';
   import { haptics } from '../scripts/utils/haptics';
 
   let currentCleanup: (() => void) | null = null;
 
   function initRoll() {
-    const rollContainer = document.querySelector('.roll-images');
+    const rollContainer = document.querySelector('.roll-screens');
     if (!rollContainer) return;
 
-    // Scroll to top and reset theme colors
     window.scrollTo(0, 0);
 
-    // Initial palette from component props
     const initialPaletteStr = rollContainer.getAttribute('data-roll-palette');
     const initialPalette = initialPaletteStr ? JSON.parse(initialPaletteStr) : [];
     if (initialPalette && initialPalette.length > 0) {
-      applyThemeColors(initialPalette, true, true); // Force update
+      applyThemeColors(initialPalette, true, true);
     }
 
-    // Clean up the previous instance if any
     if (currentCleanup) {
       currentCleanup();
       currentCleanup = null;
     }
 
+    // ── Aura swap as each photo enters the viewport ─────────────────────
     const colorTriggers = document.querySelectorAll('.color-trigger');
-    const floatingThoughts = document.querySelectorAll('.floating-thought');
-    
     const colorObserver = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const paletteStr = (entry.target as HTMLElement).dataset.palette;
-          const palette = paletteStr ? JSON.parse(paletteStr) : [];
-          if (palette && palette.length > 0) {
-            applyThemeColors(palette, true);
-          }
+        if (!entry.isIntersecting) return;
+        const paletteStr = (entry.target as HTMLElement).dataset.palette;
+        const palette = paletteStr ? JSON.parse(paletteStr) : [];
+        if (palette && palette.length > 0) {
+          applyThemeColors(palette, true);
         }
       });
     }, { threshold: REVEAL_THRESHOLD });
-
     colorTriggers.forEach(t => colorObserver.observe(t));
 
-    const poemAnimation = (rollContainer as HTMLElement).dataset.poemAnimation || 'random';
-
-    let cleanupPoems: (() => void) | null = null;
-
-    if (poemAnimation === 'scroll') {
-      // Scroll mode (parallax): driven by position rather than the IO.
-      const handleScroll = () => {
-        const vh = window.innerHeight;
-
-        floatingThoughts.forEach(thought => {
-          const rect = thought.getBoundingClientRect();
-          const elementCenter = rect.top + rect.height / 2;
-          const distanceFromCenter = (elementCenter - vh / 2) / (vh / 2);
-
-          if (rect.top < vh && rect.bottom > 0) {
-            const yOffset = distanceFromCenter * -80;
-            const opacity = 1 - Math.abs(distanceFromCenter) * 1.1;
-
-            (thought as HTMLElement).style.transform = `translate3d(0, ${yOffset}px, 0)`;
-            (thought as HTMLElement).style.opacity = Math.max(0, Math.min(0.75, opacity)).toString();
-          }
-        });
-      };
-
-      window.addEventListener('scroll', handleScroll, { passive: true });
-      handleScroll();
-
-      cleanupPoems = () => window.removeEventListener('scroll', handleScroll);
-
-    } else {
-      // Registry modes (random or specific animation)
-      const origTexts = new Map<Element, string>();
-      const assignments = new Map<Element, import('../scripts/animations/poemAnimations').PoemAnimation>();
-
-      floatingThoughts.forEach(t => {
-        const el = t as HTMLElement;
-        const orig = el.textContent || '';
-        origTexts.set(el, orig);
-        const anim = pickAnimation(poemAnimation);
-        assignments.set(el, anim);
-        anim.prepare(el, orig);
-      });
-
-      const enterCleanups = new Map<Element, () => void>();
-
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          const el = entry.target as HTMLElement;
-          const anim = assignments.get(el)!;
-          const orig = origTexts.get(el) || '';
-
-          if (entry.isIntersecting) {
-            const cleanup = anim.onEnter(el, orig);
-            if (cleanup) enterCleanups.set(el, cleanup);
-          } else {
-            const cleanup = enterCleanups.get(el);
-            if (cleanup) { cleanup(); enterCleanups.delete(el); }
-            anim.onLeave(el, orig);
-          }
-        });
-      }, { threshold: 0.4 });
-
-      floatingThoughts.forEach(t => observer.observe(t));
-      cleanupPoems = () => {
-        observer.disconnect();
-        enterCleanups.forEach(fn => fn());
-        enterCleanups.clear();
-      };
-    }
-
+    // ── Lightbox open on photo click / Enter / Space ────────────────────
     const clickableImages = Array.from(document.querySelectorAll('.clickable-image')) as HTMLElement[];
     const allImages = clickableImages.map(el => ({
       url: el.dataset.url || '',
@@ -705,6 +499,7 @@ const imageGroups: ImageGroup[] = [];
       orientation: el.dataset.orientation as 'portrait' | 'landscape' | undefined,
     }));
 
+    const photoListeners = new Map<HTMLElement, { click: () => void; key: (e: KeyboardEvent) => void }>();
     clickableImages.forEach((el, index) => {
       const openLightbox = () => {
         haptics.tap();
@@ -712,16 +507,47 @@ const imageGroups: ImageGroup[] = [];
           detail: { images: allImages, index }
         }));
       };
-      el.addEventListener('click', openLightbox);
-      el.addEventListener('keydown', (e) => {
+      const onKey = (e: KeyboardEvent) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           openLightbox();
         }
-      });
+      };
+      el.addEventListener('click', openLightbox);
+      el.addEventListener('keydown', onKey);
+      photoListeners.set(el, { click: openLightbox, key: onKey });
     });
 
-    // ── Sonic design: one subtle tone per image on first viewport entry ─────
+    // ── Reveal button (mobile) toggles the slide-up poem sheet ──────────
+    const revealBtns = Array.from(document.querySelectorAll('.photo-reveal-btn')) as HTMLButtonElement[];
+    const revealListeners = new Map<HTMLButtonElement, () => void>();
+    revealBtns.forEach(btn => {
+      const onClick = () => {
+        const expanded = btn.getAttribute('aria-expanded') === 'true';
+        const next = !expanded;
+        btn.setAttribute('aria-expanded', String(next));
+        const sheetId = btn.getAttribute('aria-controls');
+        if (!sheetId) return;
+        const sheet = document.getElementById(sheetId);
+        if (!sheet) return;
+        if (next) {
+          sheet.removeAttribute('hidden');
+          sheet.setAttribute('aria-hidden', 'false');
+        } else {
+          sheet.setAttribute('aria-hidden', 'true');
+          window.setTimeout(() => {
+            if (btn.getAttribute('aria-expanded') === 'false') {
+              sheet.setAttribute('hidden', '');
+            }
+          }, 500);
+        }
+        haptics.tap();
+      };
+      btn.addEventListener('click', onClick);
+      revealListeners.set(btn, onClick);
+    });
+
+    // ── One subtle tone per image on first viewport entry ───────────────
     const total = clickableImages.length;
     const toneObserver = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
@@ -733,11 +559,11 @@ const imageGroups: ImageGroup[] = [];
     }, { threshold: 0.6 });
     clickableImages.forEach(img => toneObserver.observe(img));
 
-    // ── Photo development effect + skeleton toggle ──────────────────────────
+    // ── Photo development (filter blur → sharp) + skeleton toggle ───────
     const styledImages = Array.from(document.querySelectorAll('.styled-image')) as HTMLImageElement[];
     const markLoaded = (img: HTMLImageElement) => {
-      const container = img.closest('.image-container');
-      container?.classList.add('loaded');
+      const frame = img.closest('.photo-frame');
+      frame?.classList.add('loaded');
     };
     styledImages.forEach(img => {
       if (img.complete && img.naturalWidth > 0) markLoaded(img);
@@ -748,16 +574,13 @@ const imageGroups: ImageGroup[] = [];
       entries.forEach(entry => {
         if (!entry.isIntersecting) return;
         const img = entry.target as HTMLImageElement;
-        const reveal = () => setTimeout(() => img.classList.add('developed'), 120);
+        const reveal = () => window.setTimeout(() => img.classList.add('developed'), 120);
         if (img.complete) reveal();
         else img.addEventListener('load', reveal, { once: true });
         developObs.unobserve(img);
       });
     }, { threshold: 0.05 });
     styledImages.forEach(img => {
-      // LCP optimisation: above-the-fold images are eager-loaded and often
-      // already complete at init. Mark them developed synchronously so the
-      // CSS `filter` doesn't delay LCP paint.
       const inInitialViewport = img.getBoundingClientRect().top < window.innerHeight;
       if (inInitialViewport && img.complete && img.naturalWidth > 0) {
         img.classList.add('developed');
@@ -766,11 +589,11 @@ const imageGroups: ImageGroup[] = [];
       developObs.observe(img);
     });
 
-    // ── Film counter ─────────────────────────────────────────────────────────
+    // ── Film counter (one frame per .photo-screen) ──────────────────────
     const filmCounter = document.getElementById('film-counter');
     const filmCurrent = document.getElementById('film-current');
     const rollSectionEl = document.querySelector('.roll-section');
-    const frames = Array.from(document.querySelectorAll('.image-wrapper, .image-pair'));
+    const frames = Array.from(document.querySelectorAll('.photo-screen'));
 
     let sectionObs: IntersectionObserver | null = null;
     let frameObs: IntersectionObserver | null = null;
@@ -792,12 +615,16 @@ const imageGroups: ImageGroup[] = [];
     }
 
     currentCleanup = () => {
-      cleanupPoems?.();
       colorObserver.disconnect();
       developObs.disconnect();
       toneObserver.disconnect();
       sectionObs?.disconnect();
       frameObs?.disconnect();
+      photoListeners.forEach((fns, el) => {
+        el.removeEventListener('click', fns.click);
+        el.removeEventListener('keydown', fns.key);
+      });
+      revealListeners.forEach((fn, btn) => btn.removeEventListener('click', fn));
     };
   }
 

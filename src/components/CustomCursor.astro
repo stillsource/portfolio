@@ -39,8 +39,10 @@
       will-change: transform;
     }
 
+    /* "Invisible" radical: ghost cursor — softer presence, smaller dot.
+       The world keeps its silence; the photographer leaves no trace. */
     .cursor-root.is-visible {
-      opacity: 1;
+      opacity: 0.55;
     }
 
     .cursor-dot,
@@ -56,16 +58,16 @@
     }
 
     .cursor-dot {
-      width: 7px;
-      height: 7px;
+      width: 5px;
+      height: 5px;
       transition: transform 0.15s ease, opacity 0.15s ease, width 0.15s ease, height 0.15s ease;
     }
 
     .cursor-ring {
-      width: 34px;
-      height: 34px;
+      width: 28px;
+      height: 28px;
       background: transparent;
-      border: 1.5px solid #ffffff;
+      border: 1px solid #ffffff;
       opacity: 0;
       transform: translate(-50%, -50%) scale(0.35);
       transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
@@ -84,12 +86,12 @@
 
     /* Clickable hover: ring expands, dot shrinks slightly */
     .cursor-root.is-clickable .cursor-ring {
-      opacity: 1;
+      opacity: 0.85;
       transform: translate(-50%, -50%) scale(1);
     }
     .cursor-root.is-clickable .cursor-dot {
-      width: 4px;
-      height: 4px;
+      width: 3px;
+      height: 3px;
     }
 
     /* Pressed state: ring snaps in */

@@ -59,7 +59,7 @@ export function applyThemeColors(palette: string[], isVisible: boolean = true, f
     root.style.setProperty('--text-main', isLight ? '#1a1a1a' : '#f0f0f0');
     root.style.setProperty('--text-muted', isLight ? '#666666' : '#aaaaaa');
     root.style.setProperty('--accent', isLight ? '#000000' : '#ffffff');
-    root.style.setProperty('--aura-opacity', isLight ? '0.12' : '0.25');
+    root.style.setProperty('--aura-opacity', isLight ? '0.06' : '0.12');
     root.style.setProperty('--bg-base', defaultBg);
     return;
   }
@@ -77,13 +77,13 @@ export function applyThemeColors(palette: string[], isVisible: boolean = true, f
     root.style.setProperty('--text-main', '#1a1a1a');
     root.style.setProperty('--text-muted', '#555555');
     root.style.setProperty('--accent', '#000000');
-    root.style.setProperty('--aura-opacity', '0.2');
+    root.style.setProperty('--aura-opacity', '0.10');
     root.style.setProperty('--bg-base', `color-mix(in srgb, ${baseColor} 10%, #f2f0eb)`);
   } else {
     root.style.setProperty('--text-main', '#ffffff');
     root.style.setProperty('--text-muted', '#bbbbbb');
     root.style.setProperty('--accent', '#ffffff');
-    root.style.setProperty('--aura-opacity', '0.4');
+    root.style.setProperty('--aura-opacity', '0.20');
     root.style.setProperty('--bg-base', `color-mix(in srgb, ${baseColor} 12%, #020202)`);
   }
 }
