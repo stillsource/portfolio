@@ -9,10 +9,13 @@ import { neutralTextForPalette } from '../data/poemColor';
 const allRolls = await getCollection('rolls');
 const sortedRolls = allRolls.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
-// Hero photo: first image of the most recent roll. Falls back to nothing
-// if the collection is empty (CI / before first sync).
-const heroRoll = sortedRolls[0];
-const heroImage = heroRoll?.data.images?.[0];
+// Hero photo selection:
+//   1. First roll with `featured: true` in frontmatter (manual pin), else
+//   2. Most recent roll (default).
+// Within the chosen roll, `heroImageIndex` picks the photo (default: 0).
+const heroRoll = sortedRolls.find(r => r.data.featured) ?? sortedRolls[0];
+const heroIdx = heroRoll?.data.heroImageIndex ?? 0;
+const heroImage = heroRoll?.data.images?.[heroIdx] ?? heroRoll?.data.images?.[0];
 const heroPalette = heroRoll?.data.palette ?? (heroImage?.palette ?? []);
 const isProd = import.meta.env.PROD;
 const vercelImg = (url: string, w: number) =>
