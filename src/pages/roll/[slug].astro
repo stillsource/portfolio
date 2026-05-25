@@ -120,7 +120,7 @@ const rollJsonLd = {
       height: 100%;
       width: 0%;
       background: var(--accent);
-      transition: width 3.5s linear;
+      transition: width 2s linear;
     }
 
     .next-roll-footer.is-loading .next-progress-bar {
@@ -251,7 +251,7 @@ const rollJsonLd = {
 
             // Progressive update of aria-valuenow
             const startTime = Date.now();
-            const duration = 4000;
+            const duration = 2500;
             const tick = () => {
               if (!footer.classList.contains('is-loading')) return;
               const elapsed = Date.now() - startTime;
