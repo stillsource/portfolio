@@ -14,7 +14,7 @@ test.describe('Roll page', () => {
   });
 
   test('images present', async ({ page }) => {
-    const images = page.locator('.image-wrapper img, .roll-image img, img[src*="unsplash"]');
+    const images = page.locator('.styled-image, img[src*="unsplash"]');
     await expect(images.first()).toBeVisible({ timeout: 5000 });
     const count = await images.count();
     expect(count).toBeGreaterThan(0);
