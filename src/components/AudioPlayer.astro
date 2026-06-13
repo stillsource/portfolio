@@ -4,19 +4,23 @@
 interface Props {
   audioUrl?: string;
 }
-const { audioUrl = '/ambiance-rue.mp3' } = Astro.props;
+// No fallback file: the button only renders when a roll actually provides an
+// ambient track. Otherwise the control would be visible but silent.
+const { audioUrl } = Astro.props;
 ---
+{audioUrl && (
 <div class="audio-controls" data-current-src={audioUrl}>
   <button id="audio-toggle" class="audio-btn" aria-label="Activer l'ambiance sonore" aria-pressed="false">
     <span class="wave w1"></span>
     <span class="wave w2"></span>
     <span class="wave w3"></span>
   </button>
-  
+
   <audio id="bg-audio" loop preload="none" transition:persist>
     <source src={audioUrl} type="audio/mpeg">
   </audio>
 </div>
+)}
 
 <style>
   .audio-controls {
@@ -77,6 +81,14 @@ const { audioUrl = '/ambiance-rue.mp3' } = Astro.props;
 
 <script>
   let currentAudioCleanup: (() => void) | null = null;
+  // Web Audio graph is created once and reused across navigations:
+  // createMediaElementSource can only run once per <audio>, and spawning a
+  // fresh AudioContext on every page-load would leak contexts.
+  let audioCtx: AudioContext | null = null;
+  let analyser: AnalyserNode | null = null;
+  let sourceNode: MediaElementAudioSourceNode | null = null;
+  let auraRafId: number | null = null;
+  let connectedEl: HTMLAudioElement | null = null;
 
   function setupAudio() {
     if (currentAudioCleanup) {
@@ -110,14 +122,12 @@ const { audioUrl = '/ambiance-rue.mp3' } = Astro.props;
     }
 
     // ── Audio-reactive aura (Web Audio API) ─────────────────────────────────
-    let audioCtx: AudioContext | null = null;
-    let analyser: AnalyserNode | null = null;
-    let sourceNode: MediaElementAudioSourceNode | null = null;
-    let auraRafId: number | null = null;
-
     const startAuraReaction = () => {
       if (auraRafId !== null) return; // already active
-      if (!audioCtx) {
+      // (Re)build the graph if missing, or if the <audio> element was recreated
+      // after navigating through a page without an audio player.
+      if (!audioCtx || connectedEl !== audio) {
+        if (audioCtx) audioCtx.close();
         audioCtx = new AudioContext();
         analyser = audioCtx.createAnalyser();
         analyser.fftSize = 64;
@@ -125,6 +135,7 @@ const { audioUrl = '/ambiance-rue.mp3' } = Astro.props;
         sourceNode = audioCtx.createMediaElementSource(audio);
         sourceNode.connect(analyser);
         analyser.connect(audioCtx.destination);
+        connectedEl = audio;
       }
       if (audioCtx.state === 'suspended') audioCtx.resume();
 
