@@ -1,6 +1,5 @@
 /// <reference types="astro/client" />
 
-declare module '@fontsource/inter';
 declare module '@fontsource/bodoni-moda';
 
 interface Window {
