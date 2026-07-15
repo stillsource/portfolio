@@ -25,6 +25,12 @@
 </style>
 
 <script>
+  // Exposed from initDust so attachBodyObserver (re-run every navigation) can
+  // drive the persisted canvas's RAF loop from a freshly-bound observer.
+  let dustStart: (() => void) | null = null;
+  let dustStop: (() => void) | null = null;
+  let dustObserver: MutationObserver | null = null;
+
   function initDust() {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const canvas = document.getElementById('dust-canvas') as HTMLCanvasElement | null;
@@ -75,10 +81,8 @@
       ctx2d.clearRect(0, 0, W, H);
     };
 
-    new MutationObserver(() => {
-      const cn = document.body.classList.contains('chambre-noire');
-      if (cn) start(); else stop();
-    }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    dustStart = start;
+    dustStop = stop;
 
     document.addEventListener('visibilitychange', () => {
       if (active && document.visibilityState === 'visible' && rafId === null) {
@@ -92,10 +96,25 @@
     }, { passive: true });
   }
 
-  if (!window.__dust_initialized) {
-    document.addEventListener('astro:page-load', () => {
+  // Astro replaces `document.body` on every View Transition, which detaches
+  // any MutationObserver bound to the old body. Re-attach on the current body
+  // each navigation (and sync state in case chambre-noire is already set).
+  function attachBodyObserver() {
+    if (!dustStart || !dustStop) return;
+    dustObserver?.disconnect();
+    dustObserver = new MutationObserver(() => {
+      if (document.body.classList.contains('chambre-noire')) dustStart!();
+      else dustStop!();
+    });
+    dustObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    if (document.body.classList.contains('chambre-noire')) dustStart(); else dustStop();
+  }
+
+  document.addEventListener('astro:page-load', () => {
+    if (!window.__dust_initialized) {
       initDust();
       window.__dust_initialized = true;
-    }, { once: true });
-  }
+    }
+    attachBodyObserver();
+  });
 </script>
