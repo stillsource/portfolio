@@ -709,19 +709,28 @@ const groupedTags = allTags.reduce((acc, tag) => {
       const isOpen = panel.classList.contains('is-open');
       setOpen(isOpen);
 
-      const w = window as Window & { __filter_disclosure_initialized?: boolean };
-      if (w.__filter_disclosure_initialized) return;
-      w.__filter_disclosure_initialized = true;
-
+      // The index DOM is NOT persisted across View Transitions, so `toggle`
+      // is a fresh node on every astro:page-load — bind its click every time
+      // (the previous node and its listener are discarded with the old DOM).
       toggle.addEventListener('click', () => {
         setOpen(!panel.classList.contains('is-open'));
       });
 
+      // Escape is bound once on the persistent `document`; it re-queries the
+      // current panel/toggle so it never closes over a detached node.
+      const w = window as Window & { __filter_disclosure_esc?: boolean };
+      if (w.__filter_disclosure_esc) return;
+      w.__filter_disclosure_esc = true;
+
       document.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape') return;
-        if (!panel.classList.contains('is-open')) return;
-        setOpen(false);
-        (toggle as HTMLElement).focus();
+        const p = document.getElementById('filter-section');
+        const t = document.getElementById('filter-disclosure-toggle');
+        if (!p || !p.classList.contains('is-open')) return;
+        p.classList.remove('is-open');
+        t?.setAttribute('aria-expanded', 'false');
+        p.setAttribute('aria-hidden', 'true');
+        (t as HTMLElement | null)?.focus();
       });
     }
 
