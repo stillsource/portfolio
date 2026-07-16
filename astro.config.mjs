@@ -3,7 +3,16 @@ import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import AstroPWA from '@vite-pwa/astro';
 
-const SITE_URL = process.env.SITE_URL || 'https://example.com';
+// SITE_URL drives the sitemap, canonical URLs and OG tags. Fail loudly in
+// production rather than silently shipping a wrong absolute URL; in dev/preview
+// fall back to localhost (a harmless sitemap host, never a real placeholder).
+if (!process.env.SITE_URL && process.env.VERCEL_ENV === 'production') {
+  throw new Error(
+    'SITE_URL must be set in production — sitemap, canonical URLs and OG tags depend on it. ' +
+    'Set it in the Vercel project environment variables.',
+  );
+}
+const SITE_URL = process.env.SITE_URL || 'http://localhost:4321';
 
 // https://astro.build/config
 export default defineConfig({

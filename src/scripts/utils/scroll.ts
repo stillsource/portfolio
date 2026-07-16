@@ -14,23 +14,30 @@ export const REVEAL_THRESHOLD = 0.08;
  */
 export const REVEAL_ROOT_MARGIN = '0px 0px 12% 0px';
 
+// Kept at module scope so repeated `astro:page-load` calls reuse a single
+// observer instead of stacking a new one on the same elements every navigation.
+let revealObserver: IntersectionObserver | null = null;
+
 /**
  * Initializes the reveal observer for `.reveal-on-scroll` elements.
  */
 export function initScrollReveal() {
+  // Drop the previous observer before creating a new one (soft navigations).
+  revealObserver?.disconnect();
+
   const observerOptions = {
     root: null,
     rootMargin: REVEAL_ROOT_MARGIN,
     threshold: REVEAL_THRESHOLD
   };
 
-  const observer = new IntersectionObserver((entries) => {
+  revealObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         entry.target.classList.add('is-visible');
         // Stop observing once revealed, except for special triggers (e.g. auto-nav)
         if (entry.target.id !== 'next-roll-trigger') {
-          observer.unobserve(entry.target);
+          revealObserver?.unobserve(entry.target);
         }
       } else if (entry.target.id === 'next-roll-trigger') {
         // Special case for the auto-navigation footer: reset if we scroll back up
@@ -40,38 +47,7 @@ export function initScrollReveal() {
     });
   }, observerOptions);
 
-  document.querySelectorAll('.reveal-on-scroll').forEach(el => observer.observe(el));
-  
-  return observer;
-}
+  document.querySelectorAll('.reveal-on-scroll').forEach(el => revealObserver!.observe(el));
 
-/**
- * Handles the parallax effect on poetic thought fragments.
- */
-export function initThoughtParallax() {
-  const thoughts = document.querySelectorAll('.thought-fragment');
-  if (thoughts.length === 0) return null;
-
-  const handleScroll = () => {
-    const vh = window.innerHeight;
-    
-    thoughts.forEach(thought => {
-      const rect = thought.getBoundingClientRect();
-      const elementCenter = rect.top + rect.height / 2;
-      const distanceFromCenter = (elementCenter - vh / 2) / (vh / 2);
-      
-      if (rect.top < vh && rect.bottom > 0) {
-        const yOffset = distanceFromCenter * -80; 
-        const opacity = 1 - Math.abs(distanceFromCenter) * 1.8;
-        
-        (thought as HTMLElement).style.transform = `translate3d(0, ${yOffset}px, 0)`;
-        (thought as HTMLElement).style.opacity = Math.max(0, Math.min(0.6, opacity)).toString();
-      }
-    });
-  };
-
-  window.addEventListener('scroll', handleScroll, { passive: true });
-  handleScroll(); // Initial check
-
-  return () => window.removeEventListener('scroll', handleScroll);
+  return revealObserver;
 }

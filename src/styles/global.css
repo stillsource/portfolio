@@ -5,13 +5,18 @@
   --text-poem: #d8d4cc;
   --accent: #ffffff;
 
+  /* Typography tokens — radical "errance & invisible" identity */
+  --font-display: 'Bodoni Moda', 'Times New Roman', serif;
+  --font-body: 'Spectral', 'Iowan Old Style', 'Palatino', serif;
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Menlo, monospace;
+
   /* Palette variables */
   --p1: #050505;
   --p2: #050505;
   --p3: #050505;
   --p4: #050505;
   --p5: #050505;
-  --aura-opacity: 0.25;
+  --aura-opacity: 0.12;
 }
 
 /* Houdini API for smooth transitions */
@@ -25,7 +30,7 @@
 @property --text-muted { syntax: '<color>'; initial-value: #888888; inherits: true; }
 @property --text-poem { syntax: '<color>'; initial-value: #d8d4cc; inherits: true; }
 @property --accent { syntax: '<color>'; initial-value: #ffffff; inherits: true; }
-@property --aura-opacity { syntax: '<number>'; initial-value: 0.25; inherits: true; }
+@property --aura-opacity { syntax: '<number>'; initial-value: 0.12; inherits: true; }
 
 /* Light mode */
 :root[data-theme="light"] {
@@ -34,7 +39,7 @@
   --text-muted: #666666;
   --text-poem: #2b2b2b;
   --accent: #000000;
-  --aura-opacity: 0.12;
+  --aura-opacity: 0.06;
 }
 
 /* Prevent FOIT — text visible immediately with system fallback */
@@ -58,7 +63,7 @@ body {
   padding: 0;
   background-color: var(--bg-base);
   color: var(--text-main);
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-body);
   overflow-x: hidden;
   transition: background-color 2s ease, color 2s ease;
 }
@@ -88,9 +93,10 @@ body {
   border-radius: 50%;
   opacity: var(--aura-opacity);
   mix-blend-mode: screen;
+  /* Errance: slow drift between palettes (doubled from 3s) */
   transition:
-    background-color 3s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 3s ease;
+    background-color 6s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 6s ease;
   /* Only the transform is continuously animated — hinting that alone is enough
      to get the blob on its own compositor layer without bloating memory. */
   will-change: transform;

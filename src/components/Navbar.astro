@@ -2,6 +2,7 @@
 // Navbar.astro
 import AudioPlayer from './AudioPlayer.astro';
 import Search from './Search.astro';
+import { site } from '../data/site';
 
 interface Props {
   mode?: 'index' | 'roll' | 'about';
@@ -42,6 +43,9 @@ const { mode = 'index', audioUrl } = Astro.props;
         <a href="/" class="tag-link">Retour au Flux</a>
       </>
     )}
+
+    <a href="/collaborer" class="tag-link">Collaborer</a>
+    <a href={`mailto:${site.email}`} class="tag-link nav-write">Écrire</a>
 
     <div class="separator" aria-hidden="true"></div>
     <button id="theme-toggle" class="theme-btn" aria-label="Passer en mode clair" aria-pressed="false">

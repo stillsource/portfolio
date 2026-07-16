@@ -136,11 +136,10 @@ test.describe('Feature: Film counter', () => {
   });
 
   test('Scenario: counter shows the correct total (visual groups)', async ({ page }) => {
-    // Given: the total matches scroll groups (imageGroups.length), not individual photos
+    // Given: the total matches the number of photo screens (one per photo)
     const total = await page.locator('#film-counter .film-total').textContent();
-    const groupCount = await page.locator('.image-wrapper, .image-pair').count();
-    // imageGroups.length = number of .image-wrapper + .image-pair in the DOM
-    expect(total?.trim()).toBe(groupCount.toString().padStart(2, '0'));
+    const screenCount = await page.locator('.photo-screen').count();
+    expect(total?.trim()).toBe(screenCount.toString().padStart(2, '0'));
   });
 
   test('Scenario: counter becomes visible on scroll into the roll', async ({ page }) => {
@@ -161,7 +160,7 @@ test.describe('Feature: Film counter', () => {
     await expect(numEl).toHaveText('01');
 
     // When: we scroll to the 2nd frame and wait for the async IO
-    const frames = page.locator('.image-wrapper, .image-pair');
+    const frames = page.locator('.photo-screen');
     const frameCount = await frames.count();
     if (frameCount < 2) test.skip();
 

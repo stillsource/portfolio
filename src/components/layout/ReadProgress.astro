@@ -1,6 +1,6 @@
 ---
 // Reading progress bar — only visible on roll pages (presence of
-// `.roll-images`). Re-initialises on every Astro navigation.
+// `.roll-screens`). Re-initialises on every Astro navigation.
 ---
 <div id="read-progress" aria-hidden="true"></div>
 
@@ -16,7 +16,7 @@
       progressScrollHandler = null;
     }
 
-    const isRollPage = !!document.querySelector('.roll-images');
+    const isRollPage = !!document.querySelector('.roll-screens');
     bar.style.opacity = isRollPage ? '1' : '0';
     bar.style.width = '0%';
     if (!isRollPage) return;

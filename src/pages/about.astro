@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Navbar from '../components/Navbar.astro';
+import { site } from '../data/site';
 ---
 
 <Layout
@@ -71,8 +72,8 @@ import Navbar from '../components/Navbar.astro';
       <div class="signature">— <em>Wanderer</em></div>
       <nav class="meta" aria-label="Liens de pied de page">
         <span class="dateline-meta">Paris · Carnet d'errance · MMXXVI</span>
-        <a href="https://instagram.com/stillsource" target="_blank" rel="noopener noreferrer">Instagram</a>
-        <a href="mailto:hello@example.com">Écrire</a>
+        <a href={site.instagram.url} target="_blank" rel="noopener noreferrer">Instagram</a>
+        <a href={`mailto:${site.email}`}>Écrire</a>
         <a href="/" class="home">Retour au recueil <span aria-hidden="true">→</span></a>
       </nav>
     </footer>
@@ -97,7 +98,7 @@ import Navbar from '../components/Navbar.astro';
       padding-bottom: 1.25rem;
       border-bottom: 1px solid currentColor;
       border-bottom-color: color-mix(in srgb, var(--text-muted) 45%, transparent);
-      font-family: 'Inter', sans-serif;
+      font-family: var(--font-mono);
       font-size: 0.72rem;
       text-transform: uppercase;
       letter-spacing: 0.32em;
@@ -126,7 +127,7 @@ import Navbar from '../components/Navbar.astro';
       max-width: 52rem;
     }
     .kicker {
-      font-family: 'Inter', sans-serif;
+      font-family: var(--font-mono);
       font-size: 0.72rem;
       text-transform: uppercase;
       letter-spacing: 0.45em;
@@ -181,7 +182,7 @@ import Navbar from '../components/Navbar.astro';
     .body {
       max-width: 36rem;
       margin-left: clamp(0rem, 6vw, 4rem);
-      font-family: 'Inter', sans-serif;
+      font-family: var(--font-mono);
       font-size: 1.0625rem;
       line-height: 1.85;
       color: var(--text-main);
@@ -235,7 +236,7 @@ import Navbar from '../components/Navbar.astro';
       color: var(--accent);
     }
     .portrait-hint {
-      font-family: 'Inter', sans-serif;
+      font-family: var(--font-mono);
       font-size: 0.6rem;
       text-transform: uppercase;
       letter-spacing: 0.4em;
@@ -311,7 +312,7 @@ import Navbar from '../components/Navbar.astro';
       flex-wrap: wrap;
       gap: 1.75rem;
       align-items: center;
-      font-family: 'Inter', sans-serif;
+      font-family: var(--font-mono);
       font-size: 0.72rem;
       text-transform: uppercase;
       letter-spacing: 0.28em;

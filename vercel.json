@@ -1,6 +1,11 @@
 {
   "images": {
-    "sizes": [400, 800, 1200, 1600],
+    "sizes": [400, 800, 1200, 1600, 1800, 2400],
+    "remotePatterns": [
+      { "protocol": "https", "hostname": "**.infomaniak.com" },
+      { "protocol": "https", "hostname": "images.unsplash.com" },
+      { "protocol": "https", "hostname": "cdn.pixabay.com" }
+    ],
     "formats": ["image/avif", "image/webp"],
     "minimumCacheTTL": 86400
   },

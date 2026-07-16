@@ -18,6 +18,8 @@ export const rollSchema = z.object({
   dominantColor: z.string().optional(), // Roll dominant color (produced by the Go sync)
   audioUrl: z.string().optional(), // URL of the contextual ambient audio file
   videoUrl: z.string().optional(), // URL of the ambient video (played on hover on the index)
+  featured: z.boolean().optional(), // Pin this roll as the index hero (overrides most-recent fallback)
+  heroImageIndex: z.number().int().min(0).optional(), // Pick a specific photo within the hero roll (default: 0)
   poemAnimation: z.enum(['scroll', 'typewriter', 'fade', 'slide', 'word', 'blur', 'random']).optional(), // Per-photo poem animation mode
   images: z.array(z.object({
     url: z.string(),

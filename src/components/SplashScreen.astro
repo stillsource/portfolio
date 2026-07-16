@@ -32,6 +32,12 @@
     display: none !important;
   }
 
+  /* "Errance & invisible" radical: no splash on mobile — QR scans land
+     directly on the hero photo. Splash stays a desktop-only signature. */
+  @media (max-width: 768px) {
+    .splash-container { display: none !important; }
+  }
+
   /* Hidden state: we push it out of view AND make it transparent */
   .splash-container.is-hidden {
     transform: translateY(-100%);
@@ -58,7 +64,7 @@
   }
 
   .splash-subtitle {
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-mono);
     text-transform: uppercase;
     letter-spacing: 0.3em;
     font-size: 0.7rem;
@@ -73,7 +79,7 @@
     background: none;
     border: 1px solid rgba(255,255,255,0.2);
     color: rgba(255,255,255,0.5);
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-mono);
     font-size: 0.7rem;
     letter-spacing: 0.2em;
     text-transform: uppercase;
@@ -125,6 +131,17 @@
     const splash = document.getElementById('splash-screen');
     const skipBtn = document.getElementById('splash-skip') as HTMLButtonElement | null;
     if (!splash) return;
+
+    // Mobile: splash is hidden via CSS (max-width: 768px). Dispatch the
+    // splashFinished event immediately so setupReveal() in the index page
+    // unblocks the staggered roll list reveal.
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    if (isMobile) {
+      splash.style.display = 'none';
+      splash.setAttribute('aria-hidden', 'true');
+      window.dispatchEvent(new Event('splashFinished'));
+      return;
+    }
 
     if (sessionStorage.getItem('splashSeen')) {
       splash.style.display = 'none';
