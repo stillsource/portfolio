@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Navbar from '../components/Navbar.astro';
+import { site } from '../data/site';
 ---
 
 <Layout
@@ -71,8 +72,8 @@ import Navbar from '../components/Navbar.astro';
       <div class="signature">— <em>Wanderer</em></div>
       <nav class="meta" aria-label="Liens de pied de page">
         <span class="dateline-meta">Paris · Carnet d'errance · MMXXVI</span>
-        <a href="https://instagram.com/stillsource" target="_blank" rel="noopener noreferrer">Instagram</a>
-        <a href="mailto:hello@example.com">Écrire</a>
+        <a href={site.instagram.url} target="_blank" rel="noopener noreferrer">Instagram</a>
+        <a href={`mailto:${site.email}`}>Écrire</a>
         <a href="/" class="home">Retour au recueil <span aria-hidden="true">→</span></a>
       </nav>
     </footer>
