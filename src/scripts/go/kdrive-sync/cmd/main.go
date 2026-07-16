@@ -6,12 +6,14 @@
 //
 //	(default)         sync kDrive → markdown files
 //	extract-palette   download an image URL and print its CIELAB palette as JSON
+//	derivatives       downscale + strip-metadata local JPEGs into an output folder
 package main
 
 import (
 	"context"
 	"fmt"
 	"kdrive-sync/cmd/config"
+	"kdrive-sync/cmd/derivatives"
 	"kdrive-sync/cmd/extractpalette"
 	"kdrive-sync/pkg/infrastructure/di"
 	"os"
@@ -36,6 +38,17 @@ func run() error {
 			url = os.Args[2]
 		}
 		return extractpalette.Run(ctx, url)
+	}
+
+	if len(os.Args) > 1 && os.Args[1] == "derivatives" {
+		inputDir, outputDir := "", ""
+		if len(os.Args) > 2 {
+			inputDir = os.Args[2]
+		}
+		if len(os.Args) > 3 {
+			outputDir = os.Args[3]
+		}
+		return derivatives.Run(ctx, inputDir, outputDir)
 	}
 
 	env, err := config.Load(ctx)
