@@ -5,6 +5,7 @@ import SplashScreen from '../components/SplashScreen.astro';
 import Navbar from '../components/Navbar.astro';
 import { getTagCategory } from '../data/categories';
 import { neutralTextForPalette } from '../data/poemColor';
+import { site } from '../data/site';
 
 const allRolls = await getCollection('rolls');
 const sortedRolls = allRolls.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
@@ -81,8 +82,14 @@ const groupedTags = allTags.reduce((acc, tag) => {
       <div class="hero-content">
         <div class="hero-brand">
           <span class="hero-edition">№&nbsp;I</span>
-          <span class="hero-name">Hors-Champ</span>
-          <span class="hero-tagline">Carnet d'errance</span>
+          <span class="hero-name">{site.name}</span>
+          <span class="hero-role">{site.role}</span>
+          <p class="hero-statement">{site.tagline}</p>
+          <nav class="hero-links" aria-label="Accès rapides">
+            <a href={site.instagram.url} class="hero-link" target="_blank" rel="noopener noreferrer">Instagram</a>
+            <a href="/collaborer" class="hero-link">Collaborer</a>
+            <a href={`mailto:${site.email}`} class="hero-link">Écrire</a>
+          </nav>
         </div>
         <a href="#recueil" class="hero-scroll" aria-label="Descendre au recueil">
           <span class="hero-scroll-label">Recueil</span>
@@ -224,8 +231,7 @@ const groupedTags = allTags.reduce((acc, tag) => {
       mix-blend-mode: difference;
     }
 
-    .hero-edition,
-    .hero-tagline {
+    .hero-edition {
       font-family: var(--font-mono);
       font-size: 0.62rem;
       letter-spacing: 0.32em;
@@ -233,6 +239,47 @@ const groupedTags = allTags.reduce((acc, tag) => {
       color: var(--text-muted);
       opacity: 0.85;
     }
+
+    .hero-role {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.26em;
+      text-transform: uppercase;
+      color: #ffffff;
+      opacity: 0.9;
+      margin-top: 0.2rem;
+    }
+
+    .hero-statement {
+      font-family: var(--font-body);
+      font-style: italic;
+      font-size: clamp(0.95rem, 2.2vw, 1.2rem);
+      line-height: 1.5;
+      color: #ffffff;
+      max-width: 32ch;
+      margin: 0.5rem 0 0;
+    }
+
+    .hero-links {
+      display: flex;
+      gap: 1.1rem;
+      margin-top: 0.9rem;
+      pointer-events: auto;
+    }
+
+    .hero-link {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #ffffff;
+      text-decoration: none;
+      opacity: 0.72;
+      transition: opacity 0.3s ease;
+    }
+
+    .hero-link:hover,
+    .hero-link:focus-visible { opacity: 1; }
 
     .hero-name {
       font-family: var(--font-display);
