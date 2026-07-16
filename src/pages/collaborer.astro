@@ -1,0 +1,75 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import { site } from '../data/site';
+
+const directions = [
+  'Portraits & commandes sur mesure',
+  'Reportage de rue & éditorial',
+  'Mettre en avant des gens, des métiers',
+  'Lieux & restaurants',
+  'Tirages',
+];
+---
+
+<Layout
+  title={`Collaborer — ${site.name}`}
+  description="Travailler avec Hors-Champ — reportage de rue, portraits, éditorial, tirages."
+>
+  <Navbar mode="about" />
+  <main class="collaborer">
+    <header class="collab-header reveal-on-scroll">
+      <span class="collab-kicker">{site.role}</span>
+      <h1 class="collab-title">Collaborer</h1>
+      <p class="collab-lede">{site.tagline}</p>
+    </header>
+
+    <section class="collab-body reveal-on-scroll">
+      <p>
+        Je construis mon travail autour d'une idée simple&nbsp;: rendre visible
+        ce qu'on ne regarde plus. Si ça résonne avec un projet, voici les
+        directions que j'explore&nbsp;—&nbsp;écrivez-moi, on en parle.
+      </p>
+      <ul class="collab-directions">
+        {directions.map(d => <li>{d}</li>)}
+      </ul>
+      <a href={`mailto:${site.email}`} class="collab-cta">Écrire</a>
+    </section>
+  </main>
+
+  <style>
+    .collaborer { max-width: 42rem; margin: 0 auto; padding: 8rem 1.5rem 6rem; }
+    .collab-kicker {
+      font-family: var(--font-mono); text-transform: uppercase;
+      letter-spacing: 0.28em; font-size: 0.72rem; color: var(--text-muted);
+    }
+    .collab-title {
+      font-family: var(--font-display); font-style: italic;
+      font-size: clamp(2.5rem, 8vw, 4rem); margin: 0.5rem 0 0;
+    }
+    .collab-lede {
+      font-family: var(--font-body); font-style: italic;
+      color: var(--text-muted); max-width: 34ch;
+    }
+    .collab-body { margin-top: 3rem; font-family: var(--font-body); line-height: 1.7; }
+    .collab-directions {
+      list-style: none; padding: 0; margin: 2rem 0;
+      display: flex; flex-direction: column; gap: 0.6rem;
+      font-family: var(--font-mono); font-size: 0.85rem;
+      text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted);
+    }
+    .collab-cta {
+      display: inline-block; font-family: var(--font-mono);
+      text-transform: uppercase; letter-spacing: 0.2em; font-size: 0.8rem;
+      color: var(--text-main); text-decoration: none;
+      border-bottom: 1px solid var(--accent); padding-bottom: 0.2rem;
+      transition: color 0.3s ease;
+    }
+    .collab-cta:hover, .collab-cta:focus-visible { color: var(--accent); }
+  </style>
+
+  <script>
+    import { initScrollReveal } from '../scripts/utils/scroll';
+    document.addEventListener('astro:page-load', () => initScrollReveal());
+  </script>
+</Layout>
